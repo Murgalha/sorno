@@ -1,122 +1,83 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include "ui.h"
+#include "window.h"
+#define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_KEYSTATE_BASED_INPUT
+#define NK_IMPLEMENTATION
+#define NK_GLFW_GL3_IMPLEMENTATION
+#include "nuklear.h"
+#include "nuklear_glfw_gl3.h"
+#undef NK_IMPLEMENTATION
+#undef NK_GLFW_GL3_IMPLEMENTATION
 #include "db.h"
-#include "sync.h"
+#include "gui.h"
 
-void add_profile(sqlite3 *db) {
-	Profile *prof;
-	prof = ui_read_profile();
-	db_insert_profile(db, prof);
-	profile_free(prof);
-}
-
-void add_element(sqlite3 *db) {
-	Element *element;
-	element = ui_read_element();
-	db_insert_element(db, element);
-	element_free(element);
-}
-
-void add_target(sqlite3 *db) {
-	Target *target;
-	target = ui_read_target();
-	db_insert_target(db, target);
-	target_free(target);
-}
-
-void link_element(sqlite3 *db) {
-	Profile *profile;
-	Element *element;
-	int n_profiles, p_idx;
-	int n_elements, e_idx;
-
-	element = db_select_unlinked_elements(db, &n_elements);
-	profile = db_select_profile_names(db, &n_profiles);
-
-	e_idx = ui_select_element("Select the element to link:\n", element, n_elements);
-
-	if(e_idx == -1)
-		return;
-
-	p_idx = ui_select_profile("Select the profile to link to:\n", profile, n_profiles);
-
-	if(p_idx == -1)
-		return;
-
-	db_link_element(db, element + e_idx, profile + p_idx);
-}
-
-void sync_profile(sqlite3 *db) {
-	Profile *profile, *full_profile;
-	Target *target;
-	int n_profiles, p_idx;
-	int n_targets, t_idx;
-
-	profile = db_select_profile_names(db, &n_profiles);
-	p_idx = ui_select_profile("Choose the profile to sync:\n", profile, n_profiles);
-
-	if(p_idx == -1)
-		return;
-
-	// get profile with elements
-	full_profile = db_select_profile(db, (profile + p_idx)->name);
-
-	profile_free(profile);
-
-	target = db_select_targets(db, &n_targets);
-	t_idx = ui_select_target("Choose target to sync:\n", target, n_targets);
-	sync_profile_to_target(full_profile, target + t_idx);
-}
+#define MAX_VERTEX_BUFFER 512 * 1024
+#define MAX_ELEMENT_BUFFER 128 * 1024
 
 int main(int argc, char *argv[]) {
-	bool quit = false;
-	char opt;
-
+	struct nk_context *ctx;
+    struct nk_glfw *glfw = malloc(sizeof(struct nk_glfw));
+    struct nk_colorf bg;
+	GLFWwindow *window = window_init();
 	sqlite3 *db = db_open();
-	db_create_tables(db);
 
-	while(!quit) {
-		printf("\n");
-		printf("1: Add profile\n");
-		printf("2: Add element\n");
-		printf("3: Add target\n");
-		printf("4: Link element\n");
-		printf("5: Sync profile\n");
-		printf("6: Quit\n");
+	GUIData *gui_data = gui_data_init(db);
 
-		opt = fgetc(stdin);
-		clear_stdin();
+    ctx = nk_glfw3_init(glfw, window, NK_GLFW3_INSTALL_CALLBACKS);
+	// Load default fonts
+    struct nk_font_atlas *atlas;
+    nk_glfw3_font_stash_begin(glfw, &atlas);
+    nk_glfw3_font_stash_end(glfw);
 
-		switch(opt) {
-		case '1':
-			add_profile(db);
-			break;
-		case '2':
-			add_element(db);
-			break;
-		case '3':
-			add_target(db);
-			break;
-		case '4':
-			link_element(db);
-			break;
-		case '5':
-			sync_profile(db);
-			break;
-		case '6':
-			quit = true;
-			break;
-		default:
-			printf("Invalid command! Enter a valid one\n");
-			break;
-		}
+    bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
+    while (!glfwWindowShouldClose(window)) {
+        processInput(window);
+        nk_glfw3_new_frame(glfw);
 
-	}
+        glClearColor(0.15f, 0.15f, 0.21f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        if (nk_begin(ctx, "Sorno", nk_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT),
+					 NK_WINDOW_BORDER)) {
 
+			nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
+			nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
+			nk_layout_row_begin(ctx, NK_STATIC, 30, 4);
+			// Managing tab behavior
+			if (nk_tab (ctx, "Sync", gui_data->layout->tab == SYNC)) {
+				gui_data->layout->tab = SYNC;
+			}
+			if (nk_tab (ctx, "Profiles", gui_data->layout->tab == PROFILES)) {
+				gui_data->layout->tab = PROFILES;
+			}
+			if (nk_tab (ctx, "Targets", gui_data->layout->tab == TARGETS)) {
+				gui_data->layout->tab = TARGETS;
+			}
+			if (nk_tab (ctx, "Elements", gui_data->layout->tab == ELEMENTS)) {
+				gui_data->layout->tab = ELEMENTS;
+			}
+			nk_style_pop_float(ctx);
+			nk_style_pop_vec2(ctx);
+
+			gui_draw_tab_layout(ctx, gui_data);
+        }
+        nk_end(ctx);
+
+        nk_glfw3_render(glfw, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+	gui_data_destroy(gui_data);
 	db_close(db);
-	return 0;
+    nk_glfw3_shutdown(glfw);
+	glfwTerminate();
+    return 0;
 }

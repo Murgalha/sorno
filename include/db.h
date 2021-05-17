@@ -11,8 +11,10 @@ void db_create_tables(sqlite3 *);
 
 // Select elements
 Target *db_select_targets(sqlite3 *, int *);
+Profile *db_select_profiles(sqlite3 *, int *);
 Profile *db_select_profile_names(sqlite3 *, int *);
 Element *db_select_unlinked_elements(sqlite3 *, int *);
+Element *db_select_elements(sqlite3 *, int *);
 Profile *db_select_profile(sqlite3 *, char *);
 
 // Insert elements
