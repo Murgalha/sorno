@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "window.h"
-
-unsigned int SCREEN_WIDTH = 800;
-unsigned int SCREEN_HEIGHT = 600;
+#include "utils.h"
 
 GLFWwindow *window_init() {
 	glfwInit();
