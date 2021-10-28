@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "db.h"
@@ -13,6 +14,11 @@ typedef struct {
 	void *data;
 	unsigned int len;
 } Array;
+
+void add_element_to_profile(Element e, Profile *p) {
+	p->element = realloc(p->element, sizeof(Element) * (p->n_elements + 1));
+	p->element[p->n_elements++] = e;
+}
 
 //
 // CALLBACKS
@@ -39,6 +45,48 @@ int db_select_target_callback(void *arr, int ncols, char **columns, char **names
 	}
 	(*len)++;
 	array->data = t;
+	return 0;
+}
+
+int db_select_profiles_callback(void *arr, int ncols, char **columns, char **names) {
+	char *profile_name;
+	bool added = false;
+	Element e;
+	Array *array = (Array *) arr;
+	Profile *p = (Profile *) array->data;
+	unsigned int *len = &(array->len);
+
+	for(int i = 0; i < ncols; i++) {
+		if(!strcmp(names[i], "name")) {
+			e.name = mtbs_new(columns[i]);
+		}
+		else if(!strcmp(names[i], "source")) {
+			e.source = mtbs_new(columns[i]);
+		}
+		else if(!strcmp(names[i], "destination")) {
+			e.destination = mtbs_new(columns[i]);
+		}
+		else if(!strcmp(names[i], "profile")) {
+			profile_name = mtbs_new(columns[i]);
+		}
+	}
+
+	for(int k = 0; k < *len; k++) {
+		if(!strcmp(profile_name, p[k].name)) {
+			add_element_to_profile(e, p+(k*sizeof(Profile)));
+			added = true;
+		}
+	}
+	if(!added) {
+		p = realloc(p, sizeof(Profile) * (*len + 1));
+		p[*len].n_elements = 0;
+		p[*len].element = NULL;
+		p[*len].name = profile_name;
+		add_element_to_profile(e, p+((*len)*sizeof(Profile)));
+		(*len)++;
+		array->data = p;
+	}
+
 	return 0;
 }
 
@@ -176,6 +224,20 @@ void db_create_tables(sqlite3 *db) {
 //
 // SELECT
 //
+Profile *db_select_profiles(sqlite3 *db, int *n) {
+	Array arr = { NULL, 0 };
+	char *errmsg;
+	char *sql = "SELECT * FROM element e JOIN profileelements pe "
+		"WHERE e.name = pe.element;";
+	sqlite3_exec(db, sql, db_select_profiles_callback, &arr, &errmsg);
+	Profile *p = arr.data;
+	*n = arr.len;
+
+	//sqlite3_free(sql);
+	//sqlite3_free(errmsg);
+	return p;
+}
+
 Target *db_select_targets(sqlite3 *db, int *n) {
 	Array arr = { NULL, 0 };
 	char *errmsg;
@@ -229,6 +291,20 @@ Element *db_select_unlinked_elements(sqlite3 *db, int *n) {
 	char *errmsg;
 	char *sql = "SELECT * FROM element WHERE name "		\
 		"NOT IN(SELECT element FROM profileelements)";
+	sqlite3_exec(db, sql, db_select_element_callback, &arr, &errmsg);
+
+	Element *e = arr.data;
+	*n = arr.len;
+
+	//sqlite3_free(sql);
+	//sqlite3_free(errmsg);
+	return e;
+}
+
+Element *db_select_elements(sqlite3 *db, int *n) {
+	Array arr = { NULL, 0 };
+	char *errmsg;
+	char *sql = "SELECT * FROM element;";
 	sqlite3_exec(db, sql, db_select_element_callback, &arr, &errmsg);
 
 	Element *e = arr.data;
