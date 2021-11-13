@@ -1,14 +1,12 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include "db/callbacks.h"
+#include "db/common.h"
 #include "data.h"
+#define MTB_STR_IMPLEMENTATION
 #include "mtb_str.h"
-
-void add_element_to_profile(Element e, Profile *p) {
-	p->element = realloc(p->element, sizeof(Element) * (p->n_elements + 1));
-	p->element[p->n_elements++] = e;
-}
 
 //
 // CALLBACKS
@@ -42,45 +40,42 @@ int db_select_target_callback(void *arr, int ncols, char **columns, char **names
 }
 
 int db_select_profiles_callback(void *arr, int ncols, char **columns, char **names) {
-	char *profile_name;
-	bool added = false;
-	Element e;
 	Array *array = (Array *) arr;
-	Profile *p = (Profile *) array->data;
-	unsigned int *len = &(array->len);
+	Profile *profile = (Profile *)array->data;
+	int *len = &(array->len);
+	bool already_added = false;
+	char *profile_name = NULL;
+	char *element_name = NULL;
 
 	for(int i = 0; i < ncols; i++) {
 		if(!strcmp(names[i], "name")) {
-			e.name = mtbs_new(columns[i]);
+			profile_name = columns[i];
 		}
-		else if(!strcmp(names[i], "source")) {
-			e.source = mtbs_new(columns[i]);
-		}
-		else if(!strcmp(names[i], "destination")) {
-			e.destination = mtbs_new(columns[i]);
-		}
-		else if(!strcmp(names[i], "profile")) {
-			profile_name = mtbs_new(columns[i]);
+		else if(!strcmp(names[i], "element")) {
+			element_name = columns[i];
 		}
 	}
 
-	// Checks if the profile already exists in the array
-	// If not, it is then added
-	for(int k = 0; k < *len; k++) {
-		if(!strcmp(profile_name, p[k].name)) {
-			add_element_to_profile(e, p+(k*sizeof(Profile)));
-			added = true;
+	for(int i = 0; i < *len; i++) {
+		if(!strcmp(profile_name, profile[i].name) && element_name) {
+			profile->element_names = realloc(profile->element_names, sizeof(char *) * (profile->n_elements + 1));
+			profile->element_names[profile->n_elements] = mtbs_new(element_name);
+			(profile->n_elements)++;
+			return 0;
 		}
 	}
-	if(!added) {
-		p = realloc(p, sizeof(Profile) * (*len + 1));
-		p[*len].n_elements = 0;
-		p[*len].element = NULL;
-		p[*len].name = profile_name;
-		add_element_to_profile(e, p+((*len)*sizeof(Profile)));
-		(*len)++;
-		array->data = p;
+
+	profile = realloc(profile, sizeof(Profile) * ((*len) + 1));
+	profile[*len].name = mtbs_new(profile_name);
+	profile[*len].n_elements = 0;
+	profile[*len].element_names = NULL;
+
+	if(element_name) {
+		profile[*len].element_names = malloc(sizeof(char *));
+		profile[*len].element_names[0] = mtbs_new(element_name);
 	}
+	array->data = profile;
+	(*len)++;
 
 	return 0;
 }
@@ -103,7 +98,7 @@ int db_select_element_callback(void *arr, int ncols, char **columns, char **name
 	Array *array = (Array *) arr;
 	Element *e = (Element *) array->data;
 	unsigned int *len = &(array->len);
-	e = realloc(e, sizeof(Element) * (*len + 1));
+	e = realloc(e, sizeof(Element) * ((*len) + 1));
 
 	for(int i = 0; i < ncols; i++) {
 		if(!strcmp(names[i], "name")) {

@@ -1,6 +1,6 @@
 #include <string.h>
 #include "gui/gui_data.h"
-#include "gui/add_window.h"
+#include "gui/update_window.h"
 
 //
 // TODO: Make static layout and make stuff prettier
@@ -13,21 +13,21 @@ void gui_draw_main_window_no_targets(struct nk_context *ctx, GUIData *gui_data) 
     nk_layout_row_dynamic(ctx, 30, 1);
 	nk_label(ctx, "No available Targets", NK_TEXT_CENTERED);
 	nk_layout_row_dynamic(ctx, 30, 1);
-	gui_draw_add_button(ctx, gui_data, TARGET, "Add Target");
+	gui_draw_update_button(ctx, gui_data, TARGET, CREATE, "Add Target");
 }
 
 void gui_draw_main_window_no_profiles(struct nk_context *ctx, GUIData *gui_data) {
     nk_layout_row_dynamic(ctx, 30, 1);
 	nk_label(ctx, "No available Profiles", NK_TEXT_CENTERED);
 	nk_layout_row_dynamic(ctx, 30, 1);
-	gui_draw_add_button(ctx, gui_data, PROFILE, "Add Profile");
+	gui_draw_update_button(ctx, gui_data, PROFILE, CREATE, "Add Profile");
 }
 
 void gui_draw_main_window_no_elements(struct nk_context *ctx, GUIData *gui_data) {
     nk_layout_row_dynamic(ctx, 30, 1);
 	nk_label(ctx, "No available Elements", NK_TEXT_CENTERED);
 	nk_layout_row_dynamic(ctx, 30, 1);
-	gui_draw_add_button(ctx, gui_data, ELEMENT, "Add Element");
+	gui_draw_update_button(ctx, gui_data, ELEMENT, CREATE, "Add Element");
 }
 
 //
@@ -48,7 +48,7 @@ void gui_draw_main_window_sync_layout(struct nk_context *ctx, GUIData *gui_data)
 		nk_layout_row_dynamic(ctx, 30, 3);
 		nk_label(ctx, "No available Profiles", NK_TEXT_CENTERED);
 		nk_label(ctx, "", NK_TEXT_CENTERED);
-		gui_draw_add_button(ctx, gui_data, PROFILE, "Add Profile");
+		gui_draw_update_button(ctx, gui_data, PROFILE, CREATE, "Add Profile");
 	}
 	if(gui_data->n_targets) {
 		nk_layout_row_dynamic(ctx, 30, gui_data->n_targets);
@@ -61,7 +61,7 @@ void gui_draw_main_window_sync_layout(struct nk_context *ctx, GUIData *gui_data)
 		nk_layout_row_dynamic(ctx, 30, 3);
 		nk_label(ctx, "No available Targets", NK_TEXT_CENTERED);
 		nk_label(ctx, "", NK_TEXT_CENTERED);
-		gui_draw_add_button(ctx, gui_data, TARGET, "Add Target");
+		gui_draw_update_button(ctx, gui_data, TARGET, CREATE, "Add Target");
 	}
 
 	nk_layout_row_dynamic(ctx, 30, 1);
@@ -101,14 +101,22 @@ void gui_draw_main_window_profiles_layout(struct nk_context *ctx, GUIData *gui_d
 	int *idx = &(gui_data->metadata->selected_profile);
 
 	nk_combobox(ctx, (const char **)gui_data->profile_names, gui_data->n_profiles, idx, 30, size);
+	gui_draw_update_button(ctx, gui_data, PROFILE, EDIT, "Edit profile");
 	for(int k = 0; k < gui_data->profile[*idx].n_elements; k++) {
-		if (nk_tree_push(ctx, NK_TREE_TAB, gui_data->element[k].name, NK_MINIMIZED)) {
+		Element element;
+		for(int i = 0; i < gui_data->n_elements; i++) {
+			if(!strcmp(gui_data->profile[*idx].element_names[k], gui_data->element[i].name)) {
+				element = gui_data->element[i];
+			}
+		}
+
+		if (nk_tree_push(ctx, NK_TREE_TAB, element.name, NK_MINIMIZED)) {
 			nk_layout_row_dynamic(ctx, 30, 2);
 			nk_text(ctx, "Source", 6, NK_TEXT_LEFT);
-			nk_text(ctx, gui_data->element[k].source, strlen(gui_data->element[k].source), NK_TEXT_LEFT);
+			nk_text(ctx, element.source, strlen(element.source), NK_TEXT_LEFT);
 			nk_layout_row_dynamic(ctx, 30, 2);
 			nk_text(ctx, "Destination", 11, NK_TEXT_LEFT);
-			nk_text(ctx, gui_data->element[k].destination, strlen(gui_data->element[k].destination), NK_TEXT_LEFT);
+			nk_text(ctx, element.destination, strlen(element.destination), NK_TEXT_LEFT);
 			nk_tree_pop(ctx);
 		}
 	}
@@ -124,6 +132,7 @@ void gui_draw_main_window_targets_layout(struct nk_context *ctx, GUIData *gui_da
 	int *idx = &(gui_data->metadata->selected_target);
 
 	nk_combobox(ctx, (const char **)gui_data->target_names, gui_data->n_targets, idx, 30, size);
+	gui_draw_update_button(ctx, gui_data, TARGET, EDIT, "Edit target");
 	nk_layout_row_dynamic(ctx, 30, 2);
 	nk_text(ctx, "Name", 4, NK_TEXT_LEFT);
 	nk_text(ctx, gui_data->target[*idx].name, strlen(gui_data->target[*idx].name), NK_TEXT_LEFT);
@@ -220,5 +229,5 @@ void gui_draw_main_window(struct nk_context *ctx, GUIData *gui_data) {
 
 void gui_draw_all_windows(struct nk_context *ctx, GUIData *gui_data) {
 	gui_draw_main_window(ctx, gui_data);
-	gui_draw_add_window(ctx, gui_data);
+	gui_draw_update_window(ctx, gui_data);
 }

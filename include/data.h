@@ -5,12 +5,13 @@ typedef struct {
 	char *name;
 	char *source;
 	char *destination;
+	char *profile;
 } Element;
 
 typedef struct {
 	char *name;
 	unsigned int n_elements;
-	Element *element;
+	char **element_names;
 } Profile;
 
 typedef struct {

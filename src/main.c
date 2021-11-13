@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
     gui_data_destroy(gui_data);
     db_close(db);
     nk_glfw3_shutdown(glfw);
+	free(glfw);
     glfwTerminate();
     return 0;
 }

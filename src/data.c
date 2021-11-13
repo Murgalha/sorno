@@ -41,16 +41,14 @@ void profile_free(Profile *p) {
 		return;
 	}
 	free(p->name);
-	for(int i = 0; i < p->n_elements; i++) {
-		element_free((p->element) + i);
-	}
 	free(p);
 }
 
 void profile_print(Profile *p) {
 	printf("Profile name: %s\n", p->name);
-	printf("Elements:\n");
+	printf("%d Elements:\n", p->n_elements);
 	for(int i = 0; i < p->n_elements; i++) {
-		element_print((p->element) + i);
+		printf("  - '%s'\n", p->element_names[i]);
 	}
+	printf("\n");
 }

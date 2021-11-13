@@ -13,6 +13,10 @@ typedef enum {
 	PROFILE
 } Layout;
 
+typedef enum {
+	CREATE,
+	EDIT
+} Action;
 
 typedef enum {
 	CLOSED,
@@ -24,6 +28,7 @@ typedef struct {
 	Status status;
 	char *title;
 	Layout layout;
+	Action action;
 	void (*callback)(struct nk_context *, void *);
 	struct nk_rect rect;
 } GUIWindow;
@@ -53,5 +58,9 @@ typedef struct {
 GUIData *gui_data_init(sqlite3 *);
 void gui_data_destroy(GUIData *);
 void gui_input_zero_all(GUIInput *);
+void gui_data_add_element_to_db(GUIData *, Element);
+void gui_data_add_target_to_db(GUIData *, Target);
+void gui_data_add_profile_to_db(GUIData *, Profile);
+void gui_input_set_input(GUIData *);
 
 #endif

@@ -6,6 +6,7 @@
 
 #include "db/create.h"
 #include "db/callbacks.h"
-#include "db/queries.h"
+#include "db/insert.h"
+#include "db/select.h"
 
 #endif
