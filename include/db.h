@@ -8,5 +8,6 @@
 #include "db/callbacks.h"
 #include "db/insert.h"
 #include "db/select.h"
+#include "db/update.h"
 
 #endif

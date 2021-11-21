@@ -33,6 +33,9 @@ int db_select_target_callback(void *arr, int ncols, char **columns, char **names
 		else if(!strcmp(names[i], "user")) {
 			t[*len].user = mtbs_new(columns[i]);
 		}
+		else if(!strcmp(names[i], "id")) {
+			t[*len].id = atoi(columns[i]);
+		}
 	}
 	(*len)++;
 	array->data = t;
@@ -46,6 +49,7 @@ int db_select_profiles_callback(void *arr, int ncols, char **columns, char **nam
 	bool already_added = false;
 	char *profile_name = NULL;
 	char *element_name = NULL;
+	int profile_id;
 
 	for(int i = 0; i < ncols; i++) {
 		if(!strcmp(names[i], "name")) {
@@ -53,6 +57,9 @@ int db_select_profiles_callback(void *arr, int ncols, char **columns, char **nam
 		}
 		else if(!strcmp(names[i], "element")) {
 			element_name = columns[i];
+		}
+		else if(!strcmp(names[i], "id")) {
+			profile_id = atoi(columns[i]);
 		}
 	}
 
@@ -67,6 +74,7 @@ int db_select_profiles_callback(void *arr, int ncols, char **columns, char **nam
 
 	profile = realloc(profile, sizeof(Profile) * ((*len) + 1));
 	profile[*len].name = mtbs_new(profile_name);
+	profile[*len].id = profile_id;
 	profile[*len].n_elements = 0;
 	profile[*len].element_names = NULL;
 
@@ -87,7 +95,12 @@ int db_select_profile_name_callback(void *arr, int ncols, char **columns, char *
 	p = realloc(p, sizeof(Profile) * (*len + 1));
 
 	for(int i = 0; i < ncols; i++) {
-		p[*len].name = mtbs_new(columns[i]);
+		if(!strcmp(names[i], "name")) {
+			p[*len].name = mtbs_new(columns[i]);
+		}
+		else if(!strcmp(names[i], "id")) {
+			p[*len].id = atoi(columns[i]);
+		}
 	}
 	(*len)++;
 	array->data = p;
@@ -109,6 +122,12 @@ int db_select_element_callback(void *arr, int ncols, char **columns, char **name
 		}
 		else if(!strcmp(names[i], "destination")) {
 			e[*len].destination = mtbs_new(columns[i]);
+		}
+		else if(!strcmp(names[i], "id")) {
+			e[*len].id = atoi(columns[i]);
+		}
+		else if(!strcmp(names[i], "profile_name")) {
+			e[*len].profile = columns[i];
 		}
 	}
 	(*len)++;

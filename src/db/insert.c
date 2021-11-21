@@ -29,7 +29,7 @@ void db_insert_element(sqlite3 *db, Element element) {
 }
 
 void db_link_element_to_profile(sqlite3 *db, char *element, char *profile) {
-	char *str = db_generate_query_string(LINK_ELEMENT_QSTRING, profile, element);
+	char *str = db_generate_query_string(INSERT_PROFILEELEMENTS_QSTRING, profile, element);
 	Array *array = db_execute_query(db, str, NULL);
 	sqlite3_free(str);
 	free(array);

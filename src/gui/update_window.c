@@ -21,23 +21,50 @@ void gui_draw_update_window_save_button(struct nk_context *ctx, GUIData *gui_dat
 		add_window->status = CLOSED;
 		switch(add_window->layout) {
 		case TARGET:
+			target.id = inputs->id;
 			target.name = inputs->name;
 			target.user = inputs->user;
 			target.address = inputs->address;
 			target.path = inputs->path;
-			gui_data_add_target_to_db(gui_data, target);
+			if(add_window->action == ADD) {
+				gui_data_add_target_to_db(gui_data, target);
+			}
+			else if(add_window->action == EDIT) {
+				gui_data_update_target_to_db(gui_data, target);
+			}
+			else {
+				printf("Invalid action: %d\n", add_window->action);
+			}
 			break;
 		case ELEMENT:
+			element.id = inputs->id;
 			element.name = inputs->name;
 			element.source = inputs->source;
 			element.destination = inputs->destination;
-			gui_data_add_element_to_db(gui_data, element);
+			if(add_window->action == ADD) {
+				gui_data_add_element_to_db(gui_data, element);
+			}
+			else if(add_window->action == EDIT) {
+				gui_data_update_element_to_db(gui_data, element);
+			}
+			else {
+				printf("Invalid action: %d\n", add_window->action);
+			}
 			break;
 		case PROFILE:
+			profile.id = inputs->id;
 			profile.name = inputs->name;
 			profile.n_elements = 0;
 			profile.element_names = NULL;
-			gui_data_add_profile_to_db(gui_data, profile);
+			if(add_window->action == ADD) {
+				gui_data_add_profile_to_db(gui_data, profile);
+			}
+			else if(add_window->action == EDIT) {
+				gui_data_update_profile_to_db(gui_data, profile);
+			}
+			else {
+				printf("Invalid action: %d\n", add_window->action);
+			}
 			break;
 		default:
 			break;
@@ -125,10 +152,10 @@ void gui_draw_update_button(struct nk_context *ctx, GUIData *gui_data, Layout la
 	}
 	else {
 		if(nk_button_label(ctx, label)) {
-			gui_set_update_window_layout(ctx, gui_data, layout, action);
 			gui_data->metadata->add_window->status = OPEN;
 			gui_data->metadata->add_window->layout = layout;
 			gui_data->metadata->add_window->action = action;
+			gui_set_update_window_layout(ctx, gui_data, layout, action);
 		}
 	}
 }

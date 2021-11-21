@@ -7,7 +7,13 @@ Array *db_execute_query(sqlite3 *db, const char *query, int (*callback)(void*,in
 	Array *array = calloc(1, sizeof(Array));
 	char *errmsg;
 
-	sqlite3_exec(db, query, callback, array, &errmsg);
+	int error = sqlite3_exec(db, query, callback, array, &errmsg);
+
+	if(error) {
+		printf("Error executing query '%s': %s\n", query, errmsg);
+		exit(EXIT_FAILURE);
+	}
+
 	return array;
 }
 

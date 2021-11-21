@@ -3,6 +3,8 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include "db/create.h"
+#include "db/common.h"
+#include "db/query_strings.h"
 #include "mtb_str.h"
 
 void mkdir_p(char *path) {
@@ -52,6 +54,7 @@ sqlite3 *db_open() {
 
 	if(res != SQLITE_OK) {
 		printf("Could not open database connection: %s\n", sqlite3_errmsg(db));
+		exit(EXIT_FAILURE);
 	}
 
 	db_create_tables(db);
@@ -69,33 +72,17 @@ void db_create_tables(sqlite3 *db) {
    int rc;
    char *sql, *errmsg;
    // TODO: Error handling
-   sql = "CREATE TABLE IF NOT EXISTS profile("	\
-	   "name TEXT PRIMARY KEY);";
-   rc = sqlite3_exec(db, sql, NULL, 0, &errmsg);
-   sqlite3_free(errmsg);
+   Array *array;
 
-   sql = "CREATE TABLE IF NOT EXISTS target("	\
-	   "name TEXT PRIMARY KEY,"					\
-	   "path TEXT NOT NULL,"					\
-	   "address TEXT,"							\
-	   "user TEXT);";
-   rc = sqlite3_exec(db, sql, NULL, 0, &errmsg);
-   sqlite3_free(errmsg);
+   array = db_execute_query(db, CREATE_PROFILE_QSTRING, NULL);
+   free(array);
 
-   sql = "CREATE TABLE IF NOT EXISTS element("	\
-	   "name TEXT PRIMARY KEY NOT NULL,"		\
-	   "source TEXT NOT NULL,"					\
-	   "destination TEXT NOT NULL);";
-   rc = sqlite3_exec(db, sql, NULL, 0, &errmsg);
-   sqlite3_free(errmsg);
+   array = db_execute_query(db, CREATE_TARGET_QSTRING, NULL);
+   free(array);
 
-   sql = "CREATE TABLE IF NOT EXISTS profileelements("		\
-	   "profile TEXT NOT NULL,"								\
-	   "element TEXT NOT NULL,"								\
-	   "FOREIGN KEY(profile) REFERENCES profile(name),"		\
-	   "FOREIGN KEY(element) REFERENCES element(name),"		\
-	   "PRIMARY KEY(profile, element));";
+   array = db_execute_query(db, CREATE_ELEMENT_QSTRING, NULL);
+   free(array);
 
-   rc = sqlite3_exec(db, sql, NULL, 0, &errmsg);
-   sqlite3_free(errmsg);
+   array = db_execute_query(db, CREATE_PROFILEELEMENTS_QSTRING, NULL);
+   free(array);
 }

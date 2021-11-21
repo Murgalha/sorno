@@ -14,7 +14,7 @@ typedef enum {
 } Layout;
 
 typedef enum {
-	CREATE,
+	ADD,
 	EDIT
 } Action;
 
@@ -42,6 +42,7 @@ typedef struct {
 
 typedef struct {
 	int max_size;
+	int id;
 	char *name, *address, *user, *source, *destination, *path;
 } GUIInput;
 
@@ -61,6 +62,12 @@ void gui_input_zero_all(GUIInput *);
 void gui_data_add_element_to_db(GUIData *, Element);
 void gui_data_add_target_to_db(GUIData *, Target);
 void gui_data_add_profile_to_db(GUIData *, Profile);
+void gui_data_update_element_to_db(GUIData *, Element);
+void gui_data_update_target_to_db(GUIData *, Target);
+void gui_data_update_profile_to_db(GUIData *, Profile);
 void gui_input_set_input(GUIData *);
+void gui_data_refresh_targets(GUIData *);
+void gui_data_refresh_elements(GUIData *);
+void gui_data_refresh_profiles(GUIData *);
 
 #endif
