@@ -15,6 +15,7 @@ void custom_nk_edit_string(struct nk_context *ctx, char *str, int max) {
 	nk_layout_row_dynamic(ctx, 30, 1);
 	nk_edit_string(ctx, NK_EDIT_FIELD,
 				   str, &len, max, &nk_filter_default);
+  
 	if(len < original_len) {
 		erase_input(str, len, original_len);
 	}

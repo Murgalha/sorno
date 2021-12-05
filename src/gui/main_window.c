@@ -10,7 +10,7 @@
 // NO DATA LAYOUTS
 //
 void gui_draw_main_window_no_targets(struct nk_context *ctx, GUIData *gui_data) {
-    nk_layout_row_dynamic(ctx, 30, 1);
+  nk_layout_row_dynamic(ctx, 30, 1);
 	nk_label(ctx, "No available Targets", NK_TEXT_CENTERED);
 	nk_layout_row_dynamic(ctx, 30, 1);
 	gui_draw_update_button(ctx, gui_data, TARGET, ADD, "Add Target");
@@ -38,6 +38,7 @@ void gui_draw_main_window_sync_layout(struct nk_context *ctx, GUIData *gui_data)
 	int target_index = gui_data->metadata->selected_target;
 
 	if(gui_data->n_profiles > 0) {
+
 		nk_layout_row_dynamic(ctx, 30, gui_data->n_profiles);
 		for(int i = 0; i < gui_data->n_profiles; i++) {
 			if (nk_option_label(ctx, gui_data->profile[i].name, profile_index == i))
@@ -133,6 +134,7 @@ void gui_draw_main_window_targets_layout(struct nk_context *ctx, GUIData *gui_da
 
 	nk_combobox(ctx, (const char **)gui_data->target_names, gui_data->n_targets, idx, 30, size);
 	gui_draw_update_button(ctx, gui_data, TARGET, EDIT, "Edit");
+
 	nk_layout_row_dynamic(ctx, 30, 2);
 	nk_text(ctx, "Name", 4, NK_TEXT_LEFT);
 	nk_text(ctx, gui_data->target[*idx].name, strlen(gui_data->target[*idx].name), NK_TEXT_LEFT);
@@ -158,6 +160,7 @@ void gui_draw_main_window_elements_layout(struct nk_context *ctx, GUIData *gui_d
 
 	nk_combobox(ctx, (const char **)gui_data->element_names, gui_data->n_elements, idx, 30, size);
 	gui_draw_update_button(ctx, gui_data, ELEMENT, EDIT, "Edit");
+
 	nk_layout_row_dynamic(ctx, 30, 2);
 	nk_text(ctx, "Name", 4, NK_TEXT_LEFT);
 	nk_text(ctx, gui_data->element[*idx].name, strlen(gui_data->element[*idx].name), NK_TEXT_LEFT);

@@ -18,6 +18,7 @@ GUIWindow *gui_window_init(char *title, int width, int height, Layout layout, in
 	window->status = CLOSED;
 	window->callback = &initial_callback;
 	window->action = ADD;
+
 	return window;
 }
 
@@ -101,7 +102,7 @@ GUIData *gui_data_init(sqlite3 *db) {
 	gui_data_refresh_elements(data);
 	gui_data_refresh_targets(data);
 	gui_data_refresh_profiles(data);
-
+  
 	return data;
 }
 

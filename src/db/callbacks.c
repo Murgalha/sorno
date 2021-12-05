@@ -84,7 +84,7 @@ int db_select_profiles_callback(void *arr, int ncols, char **columns, char **nam
 	}
 	array->data = profile;
 	(*len)++;
-
+  
 	return 0;
 }
 
@@ -129,6 +129,7 @@ int db_select_element_callback(void *arr, int ncols, char **columns, char **name
 		else if(!strcmp(names[i], "profile_name")) {
 			e[*len].profile = columns[i];
 		}
+
 	}
 	(*len)++;
 	array->data = e;
