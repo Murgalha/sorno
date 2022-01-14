@@ -1,6 +1,6 @@
+const std = @import("std");
 const c = @import("c.zig");
 const sqlite3 = c.sqlite3;
-const printf = c.printf;
 const free = c.free;
 const malloc = c.malloc;
 const fgetc = c.fgetc;
@@ -9,6 +9,10 @@ const data = @import("data.zig");
 const Element = data.Element;
 const Profile = data.Profile;
 const Target = data.Target;
+const cElement = data.cElement;
+const cProfile = data.cProfile;
+const cTarget = data.cTarget;
+const stdout = std.io.getStdOut().writer();
 pub const __mode_t = c_uint;
 
 pub const Array = extern struct {
@@ -28,14 +32,14 @@ pub fn db_get_path() [*c]u8 {
     return path;
 }
 
-pub fn db_open() ?*sqlite3 {
+pub fn db_open() !?*sqlite3 {
     var path: [*c]u8 = db_get_path();
     var db_name: [*c]u8 = c.mtbs_join(@as(c_int, 2), path, "/sorno.db");
-    mkdir_p(path);
+    try mkdir_p(path);
     var db: ?*sqlite3 = undefined;
     var res: c_int = c.sqlite3_open(db_name, &db);
     if (res != @as(c_int, 0)) {
-        _ = printf("Could not open database connection: %s\n", c.sqlite3_errmsg(db));
+        try stdout.print("Could not open database connection: {s}\n", .{c.sqlite3_errmsg(db)});
     }
     db_create_tables(db);
     free(@ptrCast(?*anyopaque, path));
@@ -68,7 +72,7 @@ pub fn db_create_tables(arg_db: ?*sqlite3) void {
     c.sqlite3_free(@ptrCast(?*anyopaque, errmsg));
 }
 
-pub fn db_select_targets(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Target {
+pub fn db_select_targets(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]cTarget {
     var db = arg_db;
     var n = arg_n;
     var arr: Array = Array{
@@ -78,12 +82,12 @@ pub fn db_select_targets(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Target {
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = @intToPtr([*c]u8, @ptrToInt("SELECT * FROM target;"));
     _ = c.sqlite3_exec(db, sql, db_select_target_callback, @ptrCast(?*anyopaque, &arr), &errmsg);
-    var t: [*c]Target = @ptrCast([*c]Target, @alignCast(@import("std").meta.alignment(Target), arr.data));
+    var t: [*c]cTarget = @ptrCast([*c]cTarget, @alignCast(@import("std").meta.alignment(cTarget), arr.data));
     n.* = @bitCast(c_int, arr.len);
     return t;
 }
 
-pub fn db_select_profile_names(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Profile {
+pub fn db_select_profile_names(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]cProfile {
     var db = arg_db;
     var n = arg_n;
     var arr: Array = Array{
@@ -93,14 +97,14 @@ pub fn db_select_profile_names(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Profile 
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = @intToPtr([*c]u8, @ptrToInt("SELECT * FROM profile;"));
     _ = c.sqlite3_exec(db, sql, db_select_profile_name_callback, @ptrCast(?*anyopaque, &arr), &errmsg);
-    var p: [*c]Profile = @ptrCast([*c]Profile, @alignCast(@import("std").meta.alignment(Profile), arr.data));
+    var p: [*c]cProfile = @ptrCast([*c]cProfile, @alignCast(@import("std").meta.alignment(cProfile), arr.data));
     p.*.n_elements = 0;
     p.*.element = null;
     n.* = @bitCast(c_int, arr.len);
     return p;
 }
 
-pub fn db_select_unlinked_elements(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Element {
+pub fn db_select_unlinked_elements(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]cElement {
     var db = arg_db;
     var n = arg_n;
     var arr: Array = Array{
@@ -110,12 +114,12 @@ pub fn db_select_unlinked_elements(arg_db: ?*sqlite3, arg_n: [*c]c_int) [*c]Elem
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = @intToPtr([*c]u8, @ptrToInt("SELECT * FROM element WHERE name NOT IN(SELECT element FROM profileelements)"));
     _ = c.sqlite3_exec(db, sql, db_select_element_callback, @ptrCast(?*anyopaque, &arr), &errmsg);
-    var e: [*c]Element = @ptrCast([*c]Element, @alignCast(@import("std").meta.alignment(Element), arr.data));
+    var e: [*c]cElement = @ptrCast([*c]cElement, @alignCast(@import("std").meta.alignment(cElement), arr.data));
     n.* = @bitCast(c_int, arr.len);
     return e;
 }
 
-pub fn db_select_profile(arg_db: ?*sqlite3, arg_profile_name: [*c]u8) [*c]Profile {
+pub fn db_select_profile(arg_db: ?*sqlite3, arg_profile_name: [*c]u8) [*c]cProfile {
     var db = arg_db;
     var profile_name = arg_profile_name;
     var arr: Array = Array{
@@ -125,33 +129,33 @@ pub fn db_select_profile(arg_db: ?*sqlite3, arg_profile_name: [*c]u8) [*c]Profil
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = c.sqlite3_mprintf("SELECT * FROM element as e JOIN profileelements as pe ON e.name = pe.element WHERE pe.profile = %Q;", profile_name);
     _ = c.sqlite3_exec(db, sql, db_select_element_callback, @ptrCast(?*anyopaque, &arr), &errmsg);
-    var prof: [*c]Profile = @ptrCast([*c]Profile, @alignCast(@import("std").meta.alignment(Profile), malloc(@sizeOf(Profile))));
+    var prof: [*c]cProfile = @ptrCast([*c]cProfile, @alignCast(@import("std").meta.alignment(cProfile), malloc(@sizeOf(cProfile))));
     prof.*.name = c.mtbs_new(profile_name);
-    prof.*.element = @ptrCast([*c]Element, @alignCast(@import("std").meta.alignment(Element), arr.data));
-    prof.*.n_elements = arr.len;
+    prof.*.element = @ptrCast([*c]cElement, @alignCast(@import("std").meta.alignment(cElement), arr.data));
+    prof.*.n_elements = @intCast(c_int, arr.len);
     return prof;
 }
 
-pub fn db_insert_profile(arg_db: ?*sqlite3, arg_p: [*c]Profile) void {
+pub fn db_insert_profile(arg_db: ?*sqlite3, arg_p: [*c]cProfile) !void {
     var db = arg_db;
     var p = arg_p;
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = c.sqlite3_mprintf("INSERT INTO profile VALUES(%Q);", p.*.name);
     if (!(sql != null)) {
-        _ = printf("Could not generate INSERT INTO PROFILE query string\n");
+        try stdout.print("Could not generate INSERT INTO PROFILE query string\n", .{});
     }
     _ = c.sqlite3_exec(db, sql, null, null, &errmsg);
     c.sqlite3_free(@ptrCast(?*anyopaque, errmsg));
     c.sqlite3_free(@ptrCast(?*anyopaque, sql));
 }
 
-pub fn db_insert_element(arg_db: ?*sqlite3, arg_e: [*c]Element) void {
+pub fn db_insert_element(arg_db: ?*sqlite3, arg_e: [*c]cElement) !void {
     var db = arg_db;
     var e = arg_e;
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = c.sqlite3_mprintf("INSERT INTO element VALUES(%Q, %Q, %Q);", e.*.name, e.*.source, e.*.destination);
     if (!(sql != null)) {
-        _ = printf("Could not generate INSERT INTO ELEMENT query string\n");
+        try stdout.print("Could not generate INSERT INTO ELEMENT query string\n", .{});
         c.sqlite3_free(@ptrCast(?*anyopaque, errmsg));
         c.sqlite3_free(@ptrCast(?*anyopaque, sql));
         return;
@@ -161,13 +165,13 @@ pub fn db_insert_element(arg_db: ?*sqlite3, arg_e: [*c]Element) void {
     c.sqlite3_free(@ptrCast(?*anyopaque, sql));
 }
 
-pub fn db_insert_target(arg_db: ?*sqlite3, arg_t: [*c]Target) void {
+pub fn db_insert_target(arg_db: ?*sqlite3, arg_t: [*c]cTarget) !void {
     var db = arg_db;
     var t = arg_t;
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = c.sqlite3_mprintf("INSERT INTO target VALUES(%Q, %Q, %Q, %Q);", t.*.name, t.*.path, t.*.address, t.*.user);
     if (!(sql != null)) {
-        _ = printf("Could not generate INSERT INTO TARGET query string\n");
+        try stdout.print("Could not generate INSERT INTO TARGET query string\n", .{});
         c.sqlite3_free(@ptrCast(?*anyopaque, errmsg));
         c.sqlite3_free(@ptrCast(?*anyopaque, sql));
         return;
@@ -177,14 +181,14 @@ pub fn db_insert_target(arg_db: ?*sqlite3, arg_t: [*c]Target) void {
     c.sqlite3_free(@ptrCast(?*anyopaque, sql));
 }
 
-pub fn db_link_element(arg_db: ?*sqlite3, arg_e: [*c]Element, arg_p: [*c]Profile) void {
+pub fn db_link_element(arg_db: ?*sqlite3, arg_e: [*c]cElement, arg_p: [*c]cProfile) !void {
     var db = arg_db;
     var e = arg_e;
     var p = arg_p;
     var errmsg: [*c]u8 = undefined;
     var sql: [*c]u8 = c.sqlite3_mprintf("INSERT INTO profileelements VALUES(%Q, %Q);", p.*.name, e.*.name);
     if (!(sql != null)) {
-        _ = printf("Could not generate INSERT INTO PROFILEELEMENTS query string\n");
+        try stdout.print("Could not generate INSERT INTO PROFILEELEMENTS query string\n", .{});
         c.sqlite3_free(@ptrCast(?*anyopaque, errmsg));
         c.sqlite3_free(@ptrCast(?*anyopaque, sql));
         return;
@@ -200,9 +204,9 @@ pub fn db_select_target_callback(arg_arr: ?*anyopaque, arg_ncols: c_int, arg_col
     var columns = arg_columns;
     var names = arg_names;
     var array: [*c]Array = @ptrCast([*c]Array, @alignCast(@import("std").meta.alignment(Array), arr));
-    var t: [*c]Target = @ptrCast([*c]Target, @alignCast(@import("std").meta.alignment(Target), array.*.data));
+    var t: [*c]cTarget = @ptrCast([*c]cTarget, @alignCast(@import("std").meta.alignment(cTarget), array.*.data));
     var len: [*c]c_uint = &array.*.len;
-    t = @ptrCast([*c]Target, @alignCast(@import("std").meta.alignment(Target), c.realloc(@ptrCast(?*anyopaque, t), @sizeOf(Target) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
+    t = @ptrCast([*c]cTarget, @alignCast(@import("std").meta.alignment(Target), c.realloc(@ptrCast(?*anyopaque, t), @sizeOf(Target) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
     {
         var i: c_int = 0;
         while (i < ncols) : (i += 1) {
@@ -253,9 +257,9 @@ pub fn db_select_profile_name_callback(arg_arr: ?*anyopaque, arg_ncols: c_int, a
     var names = arg_names;
     _ = names;
     var array: [*c]Array = @ptrCast([*c]Array, @alignCast(@import("std").meta.alignment(Array), arr));
-    var p: [*c]Profile = @ptrCast([*c]Profile, @alignCast(@import("std").meta.alignment(Profile), array.*.data));
+    var p: [*c]cProfile = @ptrCast([*c]cProfile, @alignCast(@import("std").meta.alignment(cProfile), array.*.data));
     var len: [*c]c_uint = &array.*.len;
-    p = @ptrCast([*c]Profile, @alignCast(@import("std").meta.alignment(Profile), c.realloc(@ptrCast(?*anyopaque, p), @sizeOf(Profile) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
+    p = @ptrCast([*c]cProfile, @alignCast(@import("std").meta.alignment(Profile), c.realloc(@ptrCast(?*anyopaque, p), @sizeOf(cProfile) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
     {
         var i: c_int = 0;
         while (i < ncols) : (i += 1) {
@@ -276,9 +280,9 @@ pub fn db_select_element_callback(arg_arr: ?*anyopaque, arg_ncols: c_int, arg_co
     var columns = arg_columns;
     var names = arg_names;
     var array: [*c]Array = @ptrCast([*c]Array, @alignCast(@import("std").meta.alignment(Array), arr));
-    var e: [*c]Element = @ptrCast([*c]Element, @alignCast(@import("std").meta.alignment(Element), array.*.data));
+    var e: [*c]cElement = @ptrCast([*c]cElement, @alignCast(@import("std").meta.alignment(cElement), array.*.data));
     var len: [*c]c_uint = &array.*.len;
-    e = @ptrCast([*c]Element, @alignCast(@import("std").meta.alignment(Element), c.realloc(@ptrCast(?*anyopaque, e), @sizeOf(Element) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
+    e = @ptrCast([*c]cElement, @alignCast(@import("std").meta.alignment(cElement), c.realloc(@ptrCast(?*anyopaque, e), @sizeOf(cElement) *% @bitCast(c_ulong, @as(c_ulong, len.* +% @bitCast(c_uint, @as(c_int, 1)))))));
     {
         var i: c_int = 0;
         while (i < ncols) : (i += 1) {
@@ -314,7 +318,7 @@ pub fn db_select_element_callback(arg_arr: ?*anyopaque, arg_ncols: c_int, arg_co
     return 0;
 }
 
-pub fn mkdir_p(arg_path: [*c]u8) void {
+pub fn mkdir_p(arg_path: [*c]u8) !void {
     var path = arg_path;
     var n: c_int = undefined;
     var tokens: [*c][*c]u8 = c.mtbs_split(path, &n, @intToPtr([*c]u8, @ptrToInt("/")));
@@ -332,7 +336,7 @@ pub fn mkdir_p(arg_path: [*c]u8) void {
             } else if (@as(c_int, 2) == c.__errno_location().*) {
                 _ = c.mkdir(full_path, @bitCast(__mode_t, @as(c_int, 511)));
             } else {
-                _ = printf("Could not create directory %s\n", full_path);
+                try stdout.print("Could not create directory {s}\n", .{full_path});
             }
         }
     }
