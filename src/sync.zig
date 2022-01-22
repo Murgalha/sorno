@@ -1,13 +1,13 @@
-const c = @import("c.zig");
 const std = @import("std");
-const stdout = std.io.getStdOut().writer();
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
+const c = @import("c.zig");
+const dm = @import("datamodels.zig");
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
 const mem = std.mem;
 const cstr = std.cstr;
 const ArrayList = std.ArrayList;
+const stdout = std.io.getStdOut().writer();
 
 pub fn getSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
     var list = ArrayList(u8).init(allocator.*);

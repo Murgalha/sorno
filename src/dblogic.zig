@@ -1,60 +1,45 @@
 const std = @import("std");
-const mem = std.mem;
 const c = @import("c.zig");
+const qStrings = @import("querystrings.zig");
+const cb = @import("callbacks.zig");
+const dm = @import("datamodels.zig");
+const utils = @import("utils.zig");
+const cstr = std.cstr;
+const mem = std.mem;
 const sqlite3 = c.sqlite3;
 const free = c.free;
 const malloc = c.malloc;
 const fgetc = c.fgetc;
 const FILE = c.FILE;
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
-const cElement = data.cElement;
-const cProfile = data.cProfile;
-const cTarget = data.cTarget;
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
 const stdout = std.io.getStdOut().writer();
-const qStrings = @import("query_strings.zig");
-const cb = @import("callbacks.zig");
 const ArrayList = std.ArrayList;
-const utils = @import("utils.zig");
 
 pub const __mode_t = c_uint;
 
-pub fn db_get_path() [*c]u8 {
-    var data_dir: [*c]u8 = c.getenv("XDG_DATA_HOME");
-    var path: [*c]u8 = undefined;
-    if (data_dir != null) {
-        path = c.mtbs_join(@as(c_int, 2), data_dir, "/sorno/db");
-    } else {
-        data_dir = c.getenv("HOME");
-        path = c.mtbs_join(@as(c_int, 2), data_dir, "/.local/share/sorno/db");
-    }
-    return path;
-}
-
-pub fn db_open() !?*sqlite3 {
-    var path: [*c]u8 = db_get_path();
-    var db_name: [*c]u8 = c.mtbs_join(@as(c_int, 2), path, "/sorno.db");
-    try mkdir_p(path);
+pub fn openConnection(allocator: *const mem.Allocator, path: []u8) !?*sqlite3 {
+    var p = try cstr.addNullByte(allocator.*, path);
+    var db_name: [*c]u8 = c.mtbs_join(@as(c_int, 2), p, "/sorno.db");
+    try createPath(p);
     var db: ?*sqlite3 = undefined;
     var res: c_int = c.sqlite3_open(db_name, &db);
     if (res != @as(c_int, 0)) {
         try stdout.print("Could not open database connection: {s}\n", .{c.sqlite3_errmsg(db)});
     }
-    db_create_tables(db);
-    free(@ptrCast(?*anyopaque, path));
+
+    createAllTables(db);
     free(@ptrCast(?*anyopaque, db_name));
+
     return db;
 }
 
-pub fn db_close(arg_db: ?*sqlite3) void {
-    var db = arg_db;
+pub fn closeConnection(db: ?*sqlite3) void {
     _ = c.sqlite3_close(db);
 }
 
-pub fn db_create_tables(arg_db: ?*sqlite3) void {
-    var db = arg_db;
+pub fn createAllTables(db: ?*sqlite3) void {
     var rc: c_int = undefined;
     var sql: [*c]u8 = undefined;
     var errmsg: [*c]u8 = undefined;
@@ -210,8 +195,7 @@ pub fn insertTarget(arg_db: ?*sqlite3, arg_t: Target) !void {
     c.sqlite3_free(@ptrCast(?*anyopaque, sql));
 }
 
-pub fn mkdir_p(arg_path: [*c]u8) !void {
-    var path = arg_path;
+pub fn createPath(path: [*c]u8) !void {
     var n: c_int = undefined;
     var tokens: [*c][*c]u8 = c.mtbs_split(path, &n, @intToPtr([*c]u8, @ptrToInt("/")));
     var full_path: [*c]u8 = c.mtbs_new(@intToPtr([*c]u8, @ptrToInt("/")));

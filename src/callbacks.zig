@@ -1,11 +1,11 @@
 const std = @import("std");
-const data = @import("data.zig");
+const dm = @import("datamodels.zig");
 const c = @import("c.zig");
 const mem = std.mem;
 const ArrayList = std.ArrayList;
-const Target = data.Target;
-const Element = data.Element;
-const Profile = data.Profile;
+const Target = dm.Target;
+const Element = dm.Element;
+const Profile = dm.Profile;
 const fromCString = @import("utils.zig").fromCString;
 
 fn appendToSlice(comptime T: type, allocator: *const mem.Allocator, slice: []T, item: T) []T {

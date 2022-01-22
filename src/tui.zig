@@ -1,20 +1,16 @@
 const std = @import("std");
 const c = @import("c.zig");
-const malloc = c.malloc;
-const realloc = c.realloc;
-const free = c.free;
-const FILE = c.FILE;
-const fgetc = c.fgetc;
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
+const dm = @import("datamodels.zig");
+const utils = @import("utils.zig");
 const mem = std.mem;
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
+const ArrayList = std.ArrayList;
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn().reader();
+
 const max_alloc_size = 1_000;
-const ArrayList = std.ArrayList;
-const utils = @import("utils.zig");
 
 const UiError = error{
     InvalidInput,
@@ -114,7 +110,7 @@ pub const Tui = struct {
 
         try list.appendSlice(std.mem.span(base));
         var slice = list.toOwnedSlice();
-        free(base);
+        c.free(base);
         return slice;
     }
 

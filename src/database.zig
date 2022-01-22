@@ -1,16 +1,16 @@
 const std = @import("std");
 const c = @import("c.zig");
-const db = @import("db.zig");
+const dblogic = @import("dblogic.zig");
 const sqlite3 = c.sqlite3;
-const Element = @import("data.zig").Element;
-const Target = @import("data.zig").Target;
-const Profile = @import("data.zig").Profile;
-const printElement = @import("data.zig").printElement;
-const printTarget = @import("data.zig").printTarget;
-const printProfile = @import("data.zig").printProfile;
+const dm = @import("datamodels.zig");
+const Element = dm.Element;
+const Target = dm.Target;
+const Profile = dm.Profile;
+const printElement = dm.printElement;
+const printTarget = dm.printTarget;
+const printProfile = dm.printProfile;
 const mem = std.mem;
 const ArrayList = std.ArrayList;
-const retrieveTargets = @import("db.zig").retrieveTargets;
 
 pub const DatabaseError = error{
     InvalidType,
@@ -22,9 +22,8 @@ pub const Database = struct {
     connection: ?*sqlite3,
 
     pub fn open(allocator: *const mem.Allocator) !Self {
-        var conn = try db.db_open();
-
-        db.db_create_tables(conn);
+        var path = try getDbPath(allocator);
+        var conn = try dblogic.openConnection(allocator, path);
 
         return Self{
             .allocator = allocator,
@@ -33,19 +32,19 @@ pub const Database = struct {
     }
 
     pub fn close(self: *const Self) void {
-        db.db_close(self.connection);
+        dblogic.closeConnection(self.connection);
     }
 
     pub fn insert(self: *const Self, data: anytype) !void {
         switch (@TypeOf(data)) {
             Element => {
-                try db.insertElement(self.connection, data);
+                try dblogic.insertElement(self.connection, data);
             },
             Profile => {
-                try db.insertProfile(self.connection, data);
+                try dblogic.insertProfile(self.connection, data);
             },
             Target => {
-                try db.insertTarget(self.connection, data);
+                try dblogic.insertTarget(self.connection, data);
             },
             else => {
                 return DatabaseError.InvalidType;
@@ -54,22 +53,41 @@ pub const Database = struct {
     }
 
     pub fn selectUnlinkedElements(self: *const Self) ![]Element {
-        return db.retrieveUnlinkedElements(self.allocator, self.connection);
+        return dblogic.retrieveUnlinkedElements(self.allocator, self.connection);
     }
 
     pub fn selectProfileNames(self: *const Self) ![]Profile {
-        return db.retrieveProfileNames(self.allocator, self.connection);
+        return dblogic.retrieveProfileNames(self.allocator, self.connection);
     }
 
     pub fn selectProfile(self: *const Self, profile_name: []u8) !Profile {
-        return db.retrieveFullProfile(self.allocator, self.connection, profile_name);
+        return dblogic.retrieveFullProfile(self.allocator, self.connection, profile_name);
     }
 
     pub fn selectTargets(self: *const Self) ![]Target {
-        return retrieveTargets(self.allocator, self.connection);
+        return dblogic.retrieveTargets(self.allocator, self.connection);
     }
 
     pub fn linkElement(self: *const Self, element: Element, profile: Profile) !void {
-        try db.insertProfileElement(self.connection, element, profile);
+        try dblogic.insertProfileElement(self.connection, element, profile);
+    }
+
+    fn getDbPath(allocator: *const mem.Allocator) ![]u8 {
+        var data_dir: [*c]u8 = c.getenv("XDG_DATA_HOME");
+        var path: [*c]u8 = undefined;
+        if (data_dir != null) {
+            path = c.mtbs_join(@as(c_int, 2), data_dir, "/sorno/db");
+        } else {
+            data_dir = c.getenv("HOME");
+            path = c.mtbs_join(@as(c_int, 2), data_dir, "/.local/share/sorno/db");
+        }
+
+        var list = ArrayList(u8).init(allocator.*);
+        defer list.deinit();
+
+        try list.appendSlice(mem.span(path));
+
+        c.free(path);
+        return list.toOwnedSlice();
     }
 };

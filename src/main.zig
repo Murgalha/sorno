@@ -1,13 +1,10 @@
 const std = @import("std");
-const c = @import("c.zig");
-const sqlite3 = c.sqlite3;
 const Database = @import("database.zig").Database;
-const database = @import("db.zig");
 const sync = @import("sync.zig");
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
+const dm = @import("datamodels.zig");
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
 const stdout = std.io.getStdOut().writer();
 const Tui = @import("tui.zig").Tui;
 
