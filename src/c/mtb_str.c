@@ -18,6 +18,20 @@ char *mtbs_new(char *str) {
     return string;
 }
 
+char *mtbs_new_size(char *str, int size) {
+    /* Check if pointer is NULL */
+    if(!str)
+        return NULL;
+    char *string = NULL;
+
+    /* Copy argument into alloc'd string pointer */
+    string = (char *) malloc (sizeof(char)*(size+1));
+    memcpy(string, str, size);
+    string[size] = '\0';
+
+    return string;
+}
+
 char *mtbs_join(int n, char *_self, ...) {
     if(!_self)
         return NULL;

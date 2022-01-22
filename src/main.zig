@@ -36,10 +36,14 @@ pub fn link_element(tui: Tui, db: Database) !void {
     var elements = try db.selectUnlinkedElements();
     var profiles = try db.selectProfileNames();
 
-    e_idx = try tui.selectElement("Select the element to link:\n"[0..], elements);
-
-    p_idx = try tui.selectProfile("Select the profile to link to:\n"[0..], profiles);
-    if (p_idx == -@as(c_int, 1)) return;
+    e_idx = tui.selectElement("Select the element to link:\n"[0..], elements) catch {
+        try stdout.print("There are no elements to choose\n", .{});
+        return;
+    };
+    p_idx = tui.selectProfile("Select the profile to link to:\n"[0..], profiles) catch {
+        try stdout.print("There are no profiles to choose\n", .{});
+        return;
+    };
 
     var element = elements[e_idx];
     var profile = profiles[p_idx];
@@ -56,12 +60,14 @@ pub fn sync_profile(tui: Tui, db: Database) !void {
     p_idx = try tui.selectProfile("Choose the profile to sync:\n"[0..], profiles);
     if (p_idx == -@as(c_int, 1)) return;
 
-    var profile_name = std.mem.span(profiles[p_idx].name);
-    var full_profile = try db.selectProfile(profile_name);
+    var profile_name = profiles[p_idx].name;
     var targets = try db.selectTargets();
-    t_idx = try tui.selectTarget("Choose target to sync:\n"[0..], targets);
-
-    try sync.sync_profile_to_target(full_profile, targets[t_idx]);
+    t_idx = tui.selectTarget("Choose target to sync:\n"[0..], targets) catch {
+        try stdout.print("There are no targets to choose\n", .{});
+        return;
+    };
+    var full_profile = try db.selectProfile(profile_name);
+    try sync.syncProfileToTarget(db.allocator, full_profile, targets[t_idx]);
 }
 
 pub fn main() !void {

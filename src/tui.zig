@@ -100,17 +100,20 @@ pub const Tui = struct {
         return @as(usize, opt - 1);
     }
 
-    fn basename(_: *const Self, arg_path: []u8) []u8 {
-        var path: [*c]u8 = @ptrCast([*c]u8, arg_path.ptr);
+    fn basename(self: *const Self, arg_path: []u8) ![]u8 {
+        var path = c.mtbs_new_size(@ptrCast([*c]u8, arg_path.ptr), @intCast(c_int, arg_path.len));
+        var list = ArrayList(u8).init(self.allocator.*);
+        defer list.deinit();
+
         var n: c_int = undefined;
         var tokens: [*c][*c]u8 = c.mtbs_split(path, &n, @intToPtr([*c]u8, @ptrToInt("/")));
-        var base: [*c]u8 = c.mtbs_new((blk: {
-            const tmp = n - @as(c_int, 1);
-            if (tmp >= 0) break :blk tokens + @intCast(usize, tmp) else break :blk tokens - ~@bitCast(usize, @intCast(isize, tmp) +% -1);
-        }).*);
+
+        var base: [*c]u8 = c.mtbs_new(tokens[@intCast(usize, n - 1)]);
+
         c.mtbs_free_split(tokens, n);
 
-        var slice = mem.span(base);
+        try list.appendSlice(std.mem.span(base));
+        var slice = list.toOwnedSlice();
         free(base);
         return slice;
     }
@@ -138,10 +141,10 @@ pub const Tui = struct {
 
         element.destination = try self.readLine("Enter the destination path of the element\n(If empty, will be considered basename(source)): ");
         if (element.destination.len == 0) {
-            element.destination = self.basename(element.source);
+            element.destination = try self.basename(element.source);
         }
-        element.destination = try self.maybeAppendForwardSlash(element.destination);
 
+        element.destination = try self.maybeAppendForwardSlash(element.destination);
         return element;
     }
 
@@ -149,12 +152,12 @@ pub const Tui = struct {
         var profile: Profile = undefined;
 
         profile.name = try self.readNotEmpty("Enter the name of the profile: ");
+        profile.elements = &.{};
         return profile;
     }
 
     pub fn selectProfile(self: *const Self, prompt: []const u8, profiles: []Profile) !usize {
         if (profiles.len == 0) {
-            try stdout.print("There are no profiles to choose\n", .{});
             return UiError.NoData;
         }
 
@@ -162,10 +165,7 @@ pub const Tui = struct {
     }
 
     pub fn selectElement(self: *const Self, prompt: []const u8, elements: []Element) !usize {
-        var n = elements.len;
-
-        if (n == 0) {
-            try stdout.print("There are no elements to choose\n", .{});
+        if (elements.len == 0) {
             return UiError.NoData;
         }
 
@@ -173,10 +173,7 @@ pub const Tui = struct {
     }
 
     pub fn selectTarget(self: *const Self, prompt: []const u8, targets: []Target) !usize {
-        var n = targets.len;
-
-        if (n == 0) {
-            try stdout.print("There are no targets to choose\n", .{});
+        if (targets.len == 0) {
             return UiError.NoData;
         }
 

@@ -5,32 +5,51 @@ const data = @import("data.zig");
 const Element = data.Element;
 const Profile = data.Profile;
 const Target = data.Target;
+const mem = std.mem;
+const ArrayList = std.ArrayList;
 
-pub fn rsync_src_dst_string(profile_name: [*c]u8, e: Element, t: Target) [*c]u8 {
-    var str: [*c]u8 = c.mtbs_join(@as(c_int, 2), @ptrCast([*c]u8, e.source.ptr), " ");
+pub fn getSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
+    var list = ArrayList(u8).init(allocator.*);
+    defer list.deinit();
+
+    try list.appendSlice(e.source);
+    try list.append(' ');
 
     if (t.address.len != 0) {
-        c.mtbs_concat(@as(c_int, 9), &str, @ptrCast([*c]u8, t.user.ptr), "@", @ptrCast([*c]u8, t.address.ptr), ":", @ptrCast([*c]u8, t.path.ptr), @ptrCast([*c]u8, profile_name), "/", @ptrCast([*c]u8, e.destination.ptr));
+        try list.appendSlice(t.user);
+        try list.append('@');
+        try list.appendSlice(t.address);
+        try list.append(':');
+        try list.appendSlice(t.path);
+        try list.appendSlice(profile_name);
+        try list.append('/');
+        try list.appendSlice(e.destination);
     } else {
-        c.mtbs_concat(@as(c_int, 6), &str, " ", @ptrCast([*c]u8, t.path.ptr), @ptrCast([*c]u8, profile_name), "/", @ptrCast([*c]u8, e.destination.ptr));
+        try list.append(' ');
+        try list.appendSlice(t.path);
+        try list.appendSlice(profile_name);
+        try list.append('/');
+        try list.appendSlice(e.destination);
     }
-    return str;
+    return list.toOwnedSlice();
 }
 
-pub fn sync_profile_to_target(profile: Profile, target: Target) !void {
-    var cmd_base: [*c]u8 = c.mtbs_new(@intToPtr([*c]u8, @ptrToInt("rsync -azhvP --delete ")));
-    var dirs: [*c]u8 = undefined;
-    var cmd: [*c]u8 = undefined;
+pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target) !void {
+    var cmd_base = "rsync -azhvP ";
 
-    var i: usize = 0;
-    while (i < profile.elements.len) : (i += 1) {
-        dirs = rsync_src_dst_string(@ptrCast([*c]u8, profile.name), profile.elements[i], target);
-        cmd = c.mtbs_join(@as(c_int, 2), cmd_base, dirs);
+    for (profile.elements) |element| {
+        var list = ArrayList(u8).init(allocator.*);
+        defer list.deinit();
+
+        try list.appendSlice(cmd_base);
+
+        var dirs = try getSrcAndDstString(allocator, profile.name, element, target);
+        try list.appendSlice(dirs);
+        var cmd = list.toOwnedSlice();
+
         try stdout.print("\nRunning {s}\n", .{cmd});
-        _ = c.system(cmd);
-        c.free(@ptrCast(?*anyopaque, cmd));
-        c.free(@ptrCast(?*anyopaque, dirs));
+        //_ = c.system(cmd);
     }
-    c.free(@ptrCast(?*anyopaque, cmd_base));
+
     return;
 }

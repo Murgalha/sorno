@@ -1,10 +1,23 @@
 const maxInt = @import("std").math.maxInt;
+const c = @import("c.zig");
+const std = @import("std");
+const mem = std.mem;
+const ArrayList = std.ArrayList;
+
+pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []u8 {
+    var list = ArrayList(u8).init(allocator.*);
+    defer list.deinit();
+
+    list.appendSlice(std.mem.span(str)) catch unreachable;
+
+    return list.toOwnedSlice();
+}
 
 pub fn parseU64(buf: []const u8, radix: u8) !u64 {
     var x: u64 = 0;
 
-    for (buf) |c| {
-        const digit = charToDigit(c);
+    for (buf) |char| {
+        const digit = charToDigit(char);
 
         if (digit >= radix) {
             return error.InvalidChar;
@@ -24,11 +37,11 @@ pub fn parseU64(buf: []const u8, radix: u8) !u64 {
     return x;
 }
 
-fn charToDigit(c: u8) u8 {
-    return switch (c) {
-        '0'...'9' => c - '0',
-        'A'...'Z' => c - 'A' + 10,
-        'a'...'z' => c - 'a' + 10,
+fn charToDigit(char: u8) u8 {
+    return switch (char) {
+        '0'...'9' => char - '0',
+        'A'...'Z' => char - 'A' + 10,
+        'a'...'z' => char - 'a' + 10,
         else => maxInt(u8),
     };
 }
