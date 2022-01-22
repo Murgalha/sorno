@@ -6,6 +6,7 @@ const Element = data.Element;
 const Profile = data.Profile;
 const Target = data.Target;
 const mem = std.mem;
+const cstr = std.cstr;
 const ArrayList = std.ArrayList;
 
 pub fn getSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
@@ -48,7 +49,7 @@ pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, ta
         var cmd = list.toOwnedSlice();
 
         try stdout.print("\nRunning {s}\n", .{cmd});
-        //_ = c.system(cmd);
+        _ = c.system(try cstr.addNullByte(allocator.*, cmd));
     }
 
     return;
