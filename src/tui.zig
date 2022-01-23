@@ -58,6 +58,8 @@ pub const Tui = struct {
     }
 
     fn maybeAppendForwardSlash(self: *const Self, path: []u8) ![]u8 {
+        std.debug.print("Path: {s}\n", .{path});
+
         if (path[path.len - 1] == '/') {
             return path;
         }
@@ -96,22 +98,22 @@ pub const Tui = struct {
         return @as(usize, opt - 1);
     }
 
-    fn basename(self: *const Self, arg_path: []u8) ![]u8 {
-        var path = c.mtbs_new_size(@ptrCast([*c]u8, arg_path.ptr), @intCast(c_int, arg_path.len));
+    fn basename(self: *const Self, path: []u8) ![]u8 {
         var list = ArrayList(u8).init(self.allocator.*);
         defer list.deinit();
 
-        var n: c_int = undefined;
-        var tokens: [*c][*c]u8 = c.mtbs_split(path, &n, @intToPtr([*c]u8, @ptrToInt("/")));
+        var indexes = try utils.getDelimIndexes(self.allocator, path, '/');
 
-        var base: [*c]u8 = c.mtbs_new(tokens[@intCast(usize, n - 1)]);
+        if (indexes.len < 2) {
+            try stdout.print("Given path might not be absolute path\n", .{});
+        }
 
-        c.mtbs_free_split(tokens, n);
+        // using -2 because the last slash is always the last character because
+        // of maybeAppendForwardSlash
+        var last = indexes[indexes.len - 2];
 
-        try list.appendSlice(std.mem.span(base));
-        var slice = list.toOwnedSlice();
-        c.free(base);
-        return slice;
+        try list.appendSlice(path[last + 1 ..]);
+        return list.toOwnedSlice();
     }
 
     pub fn readTarget(self: *const Self) !Target {

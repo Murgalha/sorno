@@ -13,8 +13,6 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("tmp", "src/main.zig");
     exe.linkLibC();
-    exe.addCSourceFile("src/c/mtb_str.c", &[_][]const u8{});
-    exe.addIncludeDir("include");
     exe.linkSystemLibrary("sqlite3");
     exe.setTarget(target);
     exe.setBuildMode(mode);

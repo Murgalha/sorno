@@ -38,13 +38,13 @@ pub const Database = struct {
     pub fn insert(self: *const Self, data: anytype) !void {
         switch (@TypeOf(data)) {
             Element => {
-                try dblogic.insertElement(self.connection, data);
+                try dblogic.insertElement(self.allocator, self.connection, data);
             },
             Profile => {
-                try dblogic.insertProfile(self.connection, data);
+                try dblogic.insertProfile(self.allocator, self.connection, data);
             },
             Target => {
-                try dblogic.insertTarget(self.connection, data);
+                try dblogic.insertTarget(self.allocator, self.connection, data);
             },
             else => {
                 return DatabaseError.InvalidType;
@@ -69,25 +69,23 @@ pub const Database = struct {
     }
 
     pub fn linkElement(self: *const Self, element: Element, profile: Profile) !void {
-        try dblogic.insertProfileElement(self.connection, element, profile);
+        try dblogic.insertProfileElement(self.allocator, self.connection, element, profile);
     }
 
     fn getDbPath(allocator: *const mem.Allocator) ![]u8 {
-        var data_dir: [*c]u8 = c.getenv("XDG_DATA_HOME");
-        var path: [*c]u8 = undefined;
-        if (data_dir != null) {
-            path = c.mtbs_join(@as(c_int, 2), data_dir, "/sorno/db");
-        } else {
-            data_dir = c.getenv("HOME");
-            path = c.mtbs_join(@as(c_int, 2), data_dir, "/.local/share/sorno/db");
-        }
-
         var list = ArrayList(u8).init(allocator.*);
         defer list.deinit();
 
-        try list.appendSlice(mem.span(path));
+        var data_dir: [*c]u8 = c.getenv("XDG_DATA_HOME");
+        if (data_dir != null) {
+            try list.appendSlice(mem.span(data_dir));
+            try list.appendSlice("/sorno/db");
+        } else {
+            data_dir = c.getenv("HOME");
+            try list.appendSlice(mem.span(data_dir));
+            try list.appendSlice("/.local/share/sorno/db");
+        }
 
-        c.free(path);
         return list.toOwnedSlice();
     }
 };
