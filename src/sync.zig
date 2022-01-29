@@ -1,39 +1,56 @@
+const std = @import("std");
 const c = @import("c.zig");
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
+const dm = @import("datamodels.zig");
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
+const mem = std.mem;
+const cstr = std.cstr;
+const ArrayList = std.ArrayList;
+const stdout = std.io.getStdOut().writer();
 
-pub fn rsync_src_dst_string(arg_profile_name: [*c]u8, arg_e: [*c]Element, arg_t: [*c]Target) [*c]u8 {
-    var profile_name = arg_profile_name;
-    var e = arg_e;
-    var t = arg_t;
-    var str: [*c]u8 = c.mtbs_join(@as(c_int, 2), e.*.source, " ");
-    if (t.*.address != null) {
-        c.mtbs_concat(@as(c_int, 9), &str, t.*.user, "@", t.*.address, ":", t.*.path, profile_name, "/", e.*.destination);
+pub fn getSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
+    var list = ArrayList(u8).init(allocator.*);
+    defer list.deinit();
+
+    try list.appendSlice(e.source);
+    try list.append(' ');
+
+    if (t.address.len != 0) {
+        try list.appendSlice(t.user);
+        try list.append('@');
+        try list.appendSlice(t.address);
+        try list.append(':');
+        try list.appendSlice(t.path);
+        try list.appendSlice(profile_name);
+        try list.append('/');
+        try list.appendSlice(e.destination);
     } else {
-        c.mtbs_concat(@as(c_int, 6), &str, " ", t.*.path, profile_name, "/", e.*.destination);
+        try list.append(' ');
+        try list.appendSlice(t.path);
+        try list.appendSlice(profile_name);
+        try list.append('/');
+        try list.appendSlice(e.destination);
     }
-    return str;
+    return list.toOwnedSlice();
 }
 
-pub fn sync_profile_to_target(arg_profile: [*c]Profile, arg_target: [*c]Target) void {
-    var profile = arg_profile;
-    var target = arg_target;
-    var cmd_base: [*c]u8 = c.mtbs_new(@intToPtr([*c]u8, @ptrToInt("rsync -azhvP ")));
-    var dirs: [*c]u8 = undefined;
-    var cmd: [*c]u8 = undefined;
-    {
-        var i: c_int = 0;
-        while (@bitCast(c_uint, i) < profile.*.n_elements) : (i += 1) {
-            dirs = rsync_src_dst_string(profile.*.name, profile.*.element + @bitCast(usize, @intCast(isize, i)), target);
-            cmd = c.mtbs_join(@as(c_int, 2), cmd_base, dirs);
-            _ = c.printf("\nRunning %s\n", cmd);
-            _ = c.system(cmd);
-            c.free(@ptrCast(?*anyopaque, cmd));
-            c.free(@ptrCast(?*anyopaque, dirs));
-        }
+pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target) !void {
+    var cmd_base = "rsync -azhvP ";
+
+    for (profile.elements) |element| {
+        var list = ArrayList(u8).init(allocator.*);
+        defer list.deinit();
+
+        try list.appendSlice(cmd_base);
+
+        var dirs = try getSrcAndDstString(allocator, profile.name, element, target);
+        try list.appendSlice(dirs);
+        var cmd = list.toOwnedSlice();
+
+        try stdout.print("\nRunning {s}\n", .{cmd});
+        _ = c.system(try cstr.addNullByte(allocator.*, cmd));
     }
-    c.free(@ptrCast(?*anyopaque, cmd_base));
+
     return;
 }

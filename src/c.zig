@@ -1,5 +1,4 @@
 pub usingnamespace @cImport({
-    @cInclude("mtb_str.h");
     @cInclude("sqlite3.h");
     @cInclude("stdlib.h");
     @cInclude("stdio.h");

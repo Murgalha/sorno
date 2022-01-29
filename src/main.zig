@@ -1,121 +1,126 @@
-const c = @import("c.zig");
-const sqlite3 = c.sqlite3;
-const database = @import("db.zig");
-const ui = @import("ui.zig");
+const std = @import("std");
+const Database = @import("database.zig").Database;
 const sync = @import("sync.zig");
-const data = @import("data.zig");
-const Element = data.Element;
-const Profile = data.Profile;
-const Target = data.Target;
+const dm = @import("datamodels.zig");
+const Element = dm.Element;
+const Profile = dm.Profile;
+const Target = dm.Target;
+const stdout = std.io.getStdOut().writer();
+const Tui = @import("tui.zig").Tui;
 
-pub fn add_profile(arg_db: ?*sqlite3) void {
-    var db = arg_db;
-    var prof: [*c]Profile = undefined;
-    prof = ui.ui_read_profile();
-    database.db_insert_profile(db, prof);
-    data.profile_free(prof);
+pub fn add_profile(tui: Tui, db: Database) !void {
+    var prof: Profile = undefined;
+    prof = try tui.readProfile();
+    try db.insert(prof);
 }
 
-pub fn add_element(arg_db: ?*sqlite3) void {
-    var db = arg_db;
-    var element: [*c]Element = undefined;
-    element = ui.ui_read_element();
-    database.db_insert_element(db, element);
-    data.element_free(element);
+pub fn add_element(tui: Tui, db: Database) !void {
+    var element: Element = undefined;
+    element = try tui.readElement();
+    try db.insert(element);
 }
 
-pub fn add_target(arg_db: ?*sqlite3) void {
-    var db = arg_db;
-    var target: [*c]Target = undefined;
-    target = ui.ui_read_target();
-    database.db_insert_target(db, target);
-    data.target_free(target);
+pub fn add_target(tui: Tui, db: Database) !void {
+    var target: Target = undefined;
+    target = try tui.readTarget();
+    try db.insert(target);
 }
 
-pub fn link_element(arg_db: ?*sqlite3) void {
-    var db = arg_db;
-    var profile: [*c]Profile = undefined;
-    var element: [*c]Element = undefined;
-    var n_profiles: c_int = undefined;
-    var p_idx: c_int = undefined;
-    var n_elements: c_int = undefined;
-    var e_idx: c_int = undefined;
-    element = database.db_select_unlinked_elements(db, &n_elements);
-    profile = database.db_select_profile_names(db, &n_profiles);
-    e_idx = ui.ui_select_element(@intToPtr([*c]u8, @ptrToInt("Select the element to link:\n")), element, n_elements);
-    if (e_idx == -@as(c_int, 1)) return;
-    p_idx = ui.ui_select_profile(@intToPtr([*c]u8, @ptrToInt("Select the profile to link to:\n")), profile, n_profiles);
+pub fn link_element(tui: Tui, db: Database) !void {
+    var p_idx: usize = undefined;
+    var e_idx: usize = undefined;
+
+    var elements = try db.selectUnlinkedElements();
+    var profiles = try db.selectProfileNames();
+
+    e_idx = tui.selectElement("Select the element to link:\n"[0..], elements) catch {
+        try stdout.print("There are no elements to choose\n", .{});
+        return;
+    };
+    p_idx = tui.selectProfile("Select the profile to link to:\n"[0..], profiles) catch {
+        try stdout.print("There are no profiles to choose\n", .{});
+        return;
+    };
+
+    var element = elements[e_idx];
+    var profile = profiles[p_idx];
+
+    try db.linkElement(element, profile);
+}
+
+pub fn sync_profile(tui: Tui, db: Database) !void {
+    var p_idx: usize = undefined;
+    var t_idx: usize = undefined;
+
+    var profiles = try db.selectProfileNames();
+
+    p_idx = try tui.selectProfile("Choose the profile to sync:\n"[0..], profiles);
     if (p_idx == -@as(c_int, 1)) return;
-    database.db_link_element(db, element + @bitCast(usize, @intCast(isize, e_idx)), profile + @bitCast(usize, @intCast(isize, p_idx)));
+
+    var profile_name = profiles[p_idx].name;
+    var targets = try db.selectTargets();
+    t_idx = tui.selectTarget("Choose target to sync:\n"[0..], targets) catch {
+        try stdout.print("There are no targets to choose\n", .{});
+        return;
+    };
+    var full_profile = try db.selectProfile(profile_name);
+    try sync.syncProfileToTarget(db.allocator, full_profile, targets[t_idx]);
 }
 
-pub fn sync_profile(arg_db: ?*sqlite3) void {
-    var db = arg_db;
-    var profile: [*c]Profile = undefined;
-    var full_profile: [*c]Profile = undefined;
-    var target: [*c]Target = undefined;
-    var n_profiles: c_int = undefined;
-    var p_idx: c_int = undefined;
-    var n_targets: c_int = undefined;
-    var t_idx: c_int = undefined;
-    profile = database.db_select_profile_names(db, &n_profiles);
-    p_idx = ui.ui_select_profile(@intToPtr([*c]u8, @ptrToInt("Choose the profile to sync:\n")), profile, n_profiles);
-    if (p_idx == -@as(c_int, 1)) return;
-    full_profile = database.db_select_profile(db, (profile + @bitCast(usize, @intCast(isize, p_idx))).*.name);
-    data.profile_free(profile);
-    target = database.db_select_targets(db, &n_targets);
-    t_idx = ui.ui_select_target(@intToPtr([*c]u8, @ptrToInt("Choose target to sync:\n")), target, n_targets);
-    sync.sync_profile_to_target(full_profile, target + @bitCast(usize, @intCast(isize, t_idx)));
-}
+pub fn main() !void {
+    var quit: bool = false;
+    var opt: u64 = undefined;
 
-pub fn main() void {
-    var quit: bool = @as(c_int, 0) != 0;
-    var opt: u8 = undefined;
-    var db: ?*sqlite3 = database.db_open();
-    database.db_create_tables(db);
+    const allocator = std.heap.page_allocator;
+
+    var db = try Database.open(&allocator);
+    defer db.close();
+    var tui = try Tui.init(&allocator);
+    defer tui.deinit();
+
     while (!quit) {
-        _ = c.printf("\n");
-        _ = c.printf("1: Add profile\n");
-        _ = c.printf("2: Add element\n");
-        _ = c.printf("3: Add target\n");
-        _ = c.printf("4: Link element\n");
-        _ = c.printf("5: Sync profile\n");
-        _ = c.printf("6: Quit\n");
-        opt = @bitCast(u8, @truncate(i8, c.fgetc(c.stdin)));
-        ui.clear_stdin();
+        try stdout.print("\n", .{});
+        try stdout.print("1: Add profile\n", .{});
+        try stdout.print("2: Add element\n", .{});
+        try stdout.print("3: Add target\n", .{});
+        try stdout.print("4: Link element\n", .{});
+        try stdout.print("5: Sync profile\n", .{});
+        try stdout.print("6: Quit\n", .{});
+
+        opt = tui.readU64("") catch 0;
+
         while (true) {
-            switch (@bitCast(c_int, @as(c_uint, opt))) {
-                @as(c_int, 49) => {
-                    add_profile(db);
+            switch (opt) {
+                1 => {
+                    try add_profile(tui, db);
                     break;
                 },
-                @as(c_int, 50) => {
-                    add_element(db);
+                2 => {
+                    try add_element(tui, db);
                     break;
                 },
-                @as(c_int, 51) => {
-                    add_target(db);
+                3 => {
+                    try add_target(tui, db);
                     break;
                 },
-                @as(c_int, 52) => {
-                    link_element(db);
+                4 => {
+                    try link_element(tui, db);
                     break;
                 },
-                @as(c_int, 53) => {
-                    sync_profile(db);
+                5 => {
+                    try sync_profile(tui, db);
                     break;
                 },
-                @as(c_int, 54) => {
-                    quit = @as(c_int, 1) != 0;
+                6 => {
+                    quit = true;
                     break;
                 },
                 else => {
-                    _ = c.printf("Invalid command! Enter a valid one\n");
+                    try stdout.print("Invalid command! Enter a valid one\n", .{});
                     break;
                 },
             }
             break;
         }
     }
-    database.db_close(db);
 }
