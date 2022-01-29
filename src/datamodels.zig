@@ -35,7 +35,7 @@ pub fn printTarget(target: Target) !void {
 }
 
 pub fn printElement(element: Element) !void {
-    std.debug.print("ID: {d}\n", .{element.id});
+    try stdout.print("ID: {d}\n", .{element.id});
     try stdout.print("Name: '{s}'\n", .{element.name});
     try stdout.print("Source: '{s}'\n", .{element.source});
     try stdout.print("Destination: '{s}'\n", .{element.destination});

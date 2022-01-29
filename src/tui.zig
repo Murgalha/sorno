@@ -31,15 +31,77 @@ pub const Tui = struct {
         //
     }
 
-    pub fn readLine(self: *const Self, prompt: []const u8) ![]u8 {
-        if (prompt.len > 0) {
-            try stdout.print("{s}", .{prompt});
+    pub fn readTarget(self: *const Self) !Target {
+        var target: Target = undefined;
+
+        target.name = try self.readNotEmpty("Enter the name of the target: ");
+        target.address = try self.readLine("Enter the address of the target: ");
+        target.user = try self.readLine("Enter the user to connect on the target: ");
+
+        // Append trailing forward slash to avoid problems with rsync
+        target.path = try self.readNotEmpty("Enter the path of the target: ");
+        target.path = try self.maybeAppendForwardSlash(target.path);
+
+        return target;
+    }
+
+    pub fn readElement(self: *const Self) !Element {
+        var element: Element = undefined;
+
+        element.name = try self.readNotEmpty("Enter the name of the element: ");
+        element.source = try self.readNotEmpty("Enter the source path of the element: ");
+        element.source = try self.maybeAppendForwardSlash(element.source);
+
+        element.destination = try self.readLine("Enter the destination path of the element\n(If empty, will be considered basename(source)): ");
+        if (element.destination.len == 0) {
+            element.destination = try self.basename(element.source);
         }
-        return (try stdin.readUntilDelimiterOrEofAlloc(self.allocator.*, '\n', max_alloc_size)).?;
+
+        element.destination = try self.maybeAppendForwardSlash(element.destination);
+        return element;
+    }
+
+    pub fn readProfile(self: *const Self) !Profile {
+        var profile: Profile = undefined;
+
+        profile.name = try self.readNotEmpty("Enter the name of the profile: ");
+        profile.elements = &.{};
+        return profile;
+    }
+
+    pub fn selectProfile(self: *const Self, prompt: []const u8, profiles: []Profile) !usize {
+        if (profiles.len == 0) {
+            return UiError.NoData;
+        }
+
+        return self.readOption(prompt, profiles);
+    }
+
+    pub fn selectElement(self: *const Self, prompt: []const u8, elements: []Element) !usize {
+        if (elements.len == 0) {
+            return UiError.NoData;
+        }
+
+        return self.readOption(prompt, elements);
+    }
+
+    pub fn selectTarget(self: *const Self, prompt: []const u8, targets: []Target) !usize {
+        if (targets.len == 0) {
+            return UiError.NoData;
+        }
+
+        return self.readOption(prompt, targets);
     }
 
     pub fn readU64(self: *const Self, prompt: []const u8) !u64 {
         return try utils.parseU64(try self.readLine(prompt), 10);
+    }
+
+    fn readLine(self: *const Self, prompt: []const u8) ![]u8 {
+        if (prompt.len > 0) {
+            try stdout.print("{s}", .{prompt});
+        }
+        return (try stdin.readUntilDelimiterOrEofAlloc(self.allocator.*, '\n', max_alloc_size)).?;
     }
 
     fn readNotEmpty(self: *const Self, prompt: []const u8) ![]u8 {
@@ -110,71 +172,10 @@ pub const Tui = struct {
 
         // using -2 because the last slash is always the last character because
         // of maybeAppendForwardSlash
+        // TODO: Check if above statement is true
         var last = indexes[indexes.len - 2];
 
         try list.appendSlice(path[last + 1 ..]);
         return list.toOwnedSlice();
-    }
-
-    pub fn readTarget(self: *const Self) !Target {
-        var target: Target = undefined;
-
-        target.name = try self.readNotEmpty("Enter the name of the target: ");
-        target.address = try self.readLine("Enter the address of the target: ");
-        target.user = try self.readLine("Enter the user to connect on the target: ");
-
-        // Append trailing forward slash to avoid problems with rsync
-        target.path = try self.readNotEmpty("Enter the path of the target: ");
-        target.path = try self.maybeAppendForwardSlash(target.path);
-
-        return target;
-    }
-
-    pub fn readElement(self: *const Self) !Element {
-        var element: Element = undefined;
-
-        element.name = try self.readNotEmpty("Enter the name of the element: ");
-        element.source = try self.readNotEmpty("Enter the source path of the element: ");
-        element.source = try self.maybeAppendForwardSlash(element.source);
-
-        element.destination = try self.readLine("Enter the destination path of the element\n(If empty, will be considered basename(source)): ");
-        if (element.destination.len == 0) {
-            element.destination = try self.basename(element.source);
-        }
-
-        element.destination = try self.maybeAppendForwardSlash(element.destination);
-        return element;
-    }
-
-    pub fn readProfile(self: *const Self) !Profile {
-        var profile: Profile = undefined;
-
-        profile.name = try self.readNotEmpty("Enter the name of the profile: ");
-        profile.elements = &.{};
-        return profile;
-    }
-
-    pub fn selectProfile(self: *const Self, prompt: []const u8, profiles: []Profile) !usize {
-        if (profiles.len == 0) {
-            return UiError.NoData;
-        }
-
-        return self.readOption(prompt, profiles);
-    }
-
-    pub fn selectElement(self: *const Self, prompt: []const u8, elements: []Element) !usize {
-        if (elements.len == 0) {
-            return UiError.NoData;
-        }
-
-        return self.readOption(prompt, elements);
-    }
-
-    pub fn selectTarget(self: *const Self, prompt: []const u8, targets: []Target) !usize {
-        if (targets.len == 0) {
-            return UiError.NoData;
-        }
-
-        return self.readOption(prompt, targets);
     }
 };

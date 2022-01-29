@@ -21,6 +21,7 @@ pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []u8 {
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
+    // TODO: Treat error correctly
     list.appendSlice(std.mem.span(str)) catch unreachable;
 
     return list.toOwnedSlice();
