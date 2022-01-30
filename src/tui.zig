@@ -120,8 +120,6 @@ pub const Tui = struct {
     }
 
     fn maybeAppendForwardSlash(self: *const Self, path: []u8) ![]u8 {
-        std.debug.print("Path: {s}\n", .{path});
-
         if (path[path.len - 1] == '/') {
             return path;
         }
