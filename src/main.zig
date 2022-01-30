@@ -54,8 +54,10 @@ pub fn sync_profile(tui: Tui, db: Database) !void {
 
     var profiles = try db.selectProfileNames();
 
-    p_idx = try tui.selectProfile("Choose the profile to sync:\n"[0..], profiles);
-    if (p_idx == -@as(c_int, 1)) return;
+    p_idx = tui.selectProfile("Choose the profile to sync:\n"[0..], profiles) catch {
+        try stdout.print("There are no profiles to choose\n", .{});
+        return;
+    };
 
     var profile_name = profiles[p_idx].name;
     var targets = try db.selectTargets();
@@ -65,6 +67,27 @@ pub fn sync_profile(tui: Tui, db: Database) !void {
     };
     var full_profile = try db.selectProfile(profile_name);
     try sync.syncProfileToTarget(db.allocator, full_profile, targets[t_idx]);
+}
+
+pub fn restore_profile(tui: Tui, db: Database) !void {
+    var p_idx: usize = undefined;
+    var t_idx: usize = undefined;
+
+    var profiles = try db.selectProfileNames();
+
+    p_idx = tui.selectProfile("Choose the profile to restore:\n"[0..], profiles) catch {
+        try stdout.print("There are no profiles to choose\n", .{});
+        return;
+    };
+
+    var profile_name = profiles[p_idx].name;
+    var targets = try db.selectTargets();
+    t_idx = tui.selectTarget("Choose target to restore from:\n"[0..], targets) catch {
+        try stdout.print("There are no targets to choose\n", .{});
+        return;
+    };
+    var full_profile = try db.selectProfile(profile_name);
+    try sync.restoreProfileFromTarget(db.allocator, full_profile, targets[t_idx]);
 }
 
 pub fn main() !void {
@@ -85,7 +108,8 @@ pub fn main() !void {
         try stdout.print("3: Add target\n", .{});
         try stdout.print("4: Link element\n", .{});
         try stdout.print("5: Sync profile\n", .{});
-        try stdout.print("6: Quit\n", .{});
+        try stdout.print("6: Restore profile\n", .{});
+        try stdout.print("7: Quit\n", .{});
 
         opt = tui.readU64("") catch 0;
 
@@ -112,6 +136,10 @@ pub fn main() !void {
                     break;
                 },
                 6 => {
+                    try restore_profile(tui, db);
+                    break;
+                },
+                7 => {
                     quit = true;
                     break;
                 },
