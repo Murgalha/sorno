@@ -10,13 +10,18 @@ const ArrayList = std.ArrayList;
 const stdout = std.io.getStdOut().writer();
 
 pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
+    // TODO: Rsync will not create all the directories needed, only the last one
+    // We must create it with an ssh command previously to guarantee
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
+    try list.append('"');
     try list.appendSlice(e.source);
+    try list.append('"');
     try list.append(' ');
 
     if (t.address.len != 0) {
+        try list.append('"');
         try list.appendSlice(t.user);
         try list.append('@');
         try list.appendSlice(t.address);
@@ -25,12 +30,15 @@ pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u
         try list.appendSlice(profile_name);
         try list.append('/');
         try list.appendSlice(e.destination);
+        try list.append('"');
     } else {
         try list.append(' ');
+        try list.append('"');
         try list.appendSlice(t.path);
         try list.appendSlice(profile_name);
         try list.append('/');
         try list.appendSlice(e.destination);
+        try list.append('"');
     }
     return list.toOwnedSlice();
 }
@@ -56,7 +64,7 @@ pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profi
 }
 
 pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target) !void {
-    var cmd_base = "rsync -azhvP ";
+    var cmd_base = "rsync -sazhvP ";
 
     for (profile.elements) |element| {
         var list = ArrayList(u8).init(allocator.*);
