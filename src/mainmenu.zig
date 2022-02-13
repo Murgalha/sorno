@@ -135,8 +135,11 @@ pub fn syncProfile(menu: *MainMenu) !void {
         try stdout.print("There are no targets to choose\n", .{});
         return;
     };
+
+    var pw = try menu.tui.readTargetPassword("Enter remote user password: ");
+
     var full_profile = try menu.db.selectProfile(profile_name);
-    try sync.syncProfileToTarget(menu.db.allocator, full_profile, targets[t_idx]);
+    try sync.syncProfileToTarget(menu.db.allocator, full_profile, targets[t_idx], pw);
 }
 
 pub fn restoreProfile(menu: *MainMenu) !void {

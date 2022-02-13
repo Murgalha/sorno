@@ -63,20 +63,32 @@ pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profi
     return list.toOwnedSlice();
 }
 
-pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target) !void {
+pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
+    var sshpass = "sshpass -p ";
     var cmd_base = "rsync -sazhvP ";
+
+    var sshpass_list = ArrayList(u8).init(allocator.*);
+    defer sshpass_list.deinit();
+    try sshpass_list.appendSlice(sshpass);
+    try sshpass_list.append('"');
+    try sshpass_list.appendSlice(password);
+    try sshpass_list.append('"');
+    try sshpass_list.append(' ');
+
+    var sshpass_cmd = sshpass_list.toOwnedSlice();
 
     for (profile.elements) |element| {
         var list = ArrayList(u8).init(allocator.*);
         defer list.deinit();
 
+        try list.appendSlice(sshpass_cmd);
         try list.appendSlice(cmd_base);
 
         var dirs = try getSyncSrcAndDstString(allocator, profile.name, element, target);
         try list.appendSlice(dirs);
         var cmd = list.toOwnedSlice();
 
-        try stdout.print("\nRunning {s}\n", .{cmd});
+        try stdout.print("\nRunning {s} {s}\n", .{ cmd_base, dirs });
         _ = c.system(try cstr.addNullByte(allocator.*, cmd));
     }
 

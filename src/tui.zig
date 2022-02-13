@@ -1,4 +1,5 @@
 const std = @import("std");
+const cstr = std.cstr;
 const c = @import("c.zig");
 const dm = @import("datamodels.zig");
 const utils = @import("utils.zig");
@@ -92,6 +93,10 @@ pub const Tui = struct {
         }
 
         return self.readOption(prompt, targets);
+    }
+
+    pub fn readTargetPassword(self: *Self, prompt: []const u8) ![]u8 {
+        return utils.fromCString(self.allocator, c.getpass(try cstr.addNullByte(self.allocator.*, prompt)));
     }
 
     fn readNotEmpty(self: *Self, prompt: []const u8) ![]u8 {
