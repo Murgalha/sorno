@@ -4,7 +4,7 @@
 Sorno is a sync utility that lets you semantically organize directories and
 back them up locally or on a remote server.
 
-In its current state, Sorno uses sqlite3 database to manage directories and `rsync`
+In its current state, Sorno uses sqlite3 database to manage directories and `sshpass` and `rsync`
 to effectively copy your data.
 
 ### Concepts

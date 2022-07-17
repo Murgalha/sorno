@@ -6,4 +6,5 @@ pub usingnamespace @cImport({
     @cInclude("dirent.h");
     @cInclude("errno.h");
     @cInclude("sys/stat.h");
+    @cInclude("unistd.h");
 });
