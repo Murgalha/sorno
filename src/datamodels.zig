@@ -7,23 +7,23 @@ const stdout = std.io.getStdOut().writer();
 
 pub const Element = struct {
     id: u64,
-    name: []u8,
-    source: []u8,
-    destination: []u8,
+    name: []const u8,
+    source: []const u8,
+    destination: []const u8,
 };
 
 pub const Profile = struct {
     id: u64,
-    name: []u8,
+    name: []const u8,
     elements: []Element,
 };
 
 pub const Target = struct {
     id: u64,
-    name: []u8,
-    user: []u8,
-    address: []u8,
-    path: []u8,
+    name: []const u8,
+    user: []const u8,
+    address: []const u8,
+    path: []const u8,
 };
 
 pub fn printTarget(target: Target) !void {
@@ -46,6 +46,10 @@ pub fn printProfile(p: Profile) !void {
     try stdout.print("{d} Elements:\n", .{p.elements.len});
 
     for (p.elements) |element| {
-        try printElement(element);
+        try stdout.print("  ID: {d}\n", .{element.id});
+        try stdout.print("  Name: '{s}'\n", .{element.name});
+        try stdout.print("  Source: '{s}'\n", .{element.source});
+        try stdout.print("  Destination: '{s}'\n", .{element.destination});
+        try stdout.print("-------\n", .{});
     }
 }

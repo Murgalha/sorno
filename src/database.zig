@@ -60,7 +60,7 @@ pub const Database = struct {
         return dblogic.retrieveProfileNames(self.allocator, self.connection);
     }
 
-    pub fn selectProfile(self: *const Self, profile_name: []u8) !Profile {
+    pub fn selectProfile(self: *const Self, profile_name: []const u8) !Profile {
         return dblogic.retrieveFullProfile(self.allocator, self.connection, profile_name);
     }
 

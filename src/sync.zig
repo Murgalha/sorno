@@ -9,7 +9,7 @@ const cstr = std.cstr;
 const ArrayList = std.ArrayList;
 const stdout = std.io.getStdOut().writer();
 
-pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
+pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []const u8, e: Element, t: Target) ![]u8 {
     // TODO: Rsync will not create all the directories needed, only the last one
     // We must create it with an ssh command previously to guarantee
     var list = ArrayList(u8).init(allocator.*);
@@ -32,7 +32,6 @@ pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u
         try list.appendSlice(e.destination);
         try list.append('"');
     } else {
-        try list.append(' ');
         try list.append('"');
         try list.appendSlice(t.path);
         try list.appendSlice(profile_name);
@@ -67,7 +66,7 @@ pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profi
     return list.toOwnedSlice();
 }
 
-pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
+pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []const u8) !void {
     var cmd_base = "rsync -sazhvP ";
 
     var sshpass_cmd = try getSshpassCmd(allocator, password);
@@ -89,7 +88,7 @@ pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, ta
     return;
 }
 
-pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []u8, element: Element) ![]u8 {
+pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []const u8, element: Element) ![]const u8 {
     // cp -r /tmp/sorno/{p.name}/{e.destination} {e.source}
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
@@ -107,14 +106,13 @@ pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []u8, el
     try list.append(' ');
     try list.append('"');
 
-    try list.appendSlice("/tmp/sorno/test/");
-    //try list.appendSlice(element.source);
+    try list.appendSlice(element.source);
     try list.append('"');
 
     return list.toOwnedSlice();
 }
 
-pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
+pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []const u8) !void {
     // TODO: There should be a safe way to create the destination directory and copy stuff there
     // without having same name subdirectory, like '/path/directory/directory/content
     var restore_cmd = try getRestoreSrcAndDstString(allocator, profile, target);
@@ -138,7 +136,7 @@ pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profil
     }
 }
 
-fn getSshpassCmd(allocator: *const mem.Allocator, password: []u8) ![]u8 {
+fn getSshpassCmd(allocator: *const mem.Allocator, password: []const u8) ![]const u8 {
     var sshpass = "sshpass -p ";
 
     var list = ArrayList(u8).init(allocator.*);
@@ -150,4 +148,97 @@ fn getSshpassCmd(allocator: *const mem.Allocator, password: []u8) ![]u8 {
     try list.append(' ');
 
     return list.toOwnedSlice();
+}
+
+// ----- TESTS -----
+test "getSyncSrcAndDstString" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var profile = "test-profile"[0..];
+    var target = Target{
+        .id = 1,
+        .name = "target-name"[0..],
+        .user = "user"[0..],
+        .address = "0.0.0.0"[0..],
+        .path = "/test/"[0..],
+    };
+    var element = Element{
+        .id = 1,
+        .name = "element-name"[0..],
+        .source = "/dir/"[0..],
+        .destination = "folder/"[0..],
+    };
+    var expected = "\"/dir/\" \"user@0.0.0.0:/test/test-profile/folder/\"";
+
+    var string = try getSyncSrcAndDstString(&allocator, profile, element, target);
+    defer allocator.free(string);
+
+    std.debug.assert(std.mem.eql(u8, expected, string));
+}
+
+test "getSyncSrcAndDstString-withEmptyAddress" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var profile = "test-profile"[0..];
+    var target = Target{
+        .id = 1,
+        .name = "target-name"[0..],
+        .user = "user"[0..],
+        .address = ""[0..],
+        .path = "/test/"[0..],
+    };
+    var element = Element{
+        .id = 1,
+        .name = "element-name"[0..],
+        .source = "/dir/"[0..],
+        .destination = "folder/"[0..],
+    };
+    var expected = "\"/dir/\" \"/test/test-profile/folder/\"";
+
+    var string = try getSyncSrcAndDstString(&allocator, profile, element, target);
+    defer allocator.free(string);
+
+    std.debug.assert(std.mem.eql(u8, expected, string));
+}
+
+test "getSshpassCmd" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var password = "password";
+    var expected = "sshpass -p \"password\" ";
+
+    var string = try getSshpassCmd(&allocator, password);
+    defer allocator.free(string);
+
+    std.debug.assert(std.mem.eql(u8, string, expected));
+}
+
+test "getRestoreCopyCmd" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    var profile = "test-profile"[0..];
+    var element = Element{
+        .id = 1,
+        .name = "element-name"[0..],
+        .source = "/dir/"[0..],
+        .destination = "folder/"[0..],
+    };
+    // cp -r /tmp/sorno/{p.name}/{e.destination} {e.source}
+    var expected = "cp -r \"/tmp/sorno/test-profile/folder/\" \"/dir/\"";
+
+    var string = try getRestoreCopyCmd(&allocator, profile, element);
+    defer allocator.free(string);
+
+    std.debug.print("{s}\n", .{string});
+    std.debug.print("{s}\n", .{expected});
+
+    std.debug.assert(std.mem.eql(u8, expected, string));
 }

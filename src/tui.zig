@@ -95,11 +95,11 @@ pub const Tui = struct {
         return self.readOption(prompt, targets);
     }
 
-    pub fn readTargetPassword(self: *Self, prompt: []const u8) ![]u8 {
+    pub fn readTargetPassword(self: *Self, prompt: []const u8) ![]const u8 {
         return utils.fromCString(self.allocator, c.getpass(try cstr.addNullByte(self.allocator.*, prompt)));
     }
 
-    fn readNotEmpty(self: *Self, prompt: []const u8) ![]u8 {
+    fn readNotEmpty(self: *Self, prompt: []const u8) ![]const u8 {
         var valid: bool = false;
         var str: []u8 = undefined;
 
@@ -114,7 +114,7 @@ pub const Tui = struct {
         return str;
     }
 
-    fn maybeAppendForwardSlash(self: *Self, path: []u8) ![]u8 {
+    fn maybeAppendForwardSlash(self: *Self, path: []const u8) ![]const u8 {
         if (path[path.len - 1] == '/') {
             return path;
         }
@@ -153,7 +153,7 @@ pub const Tui = struct {
         return @as(usize, opt - 1);
     }
 
-    fn basename(self: *Self, path: []u8) ![]u8 {
+    fn basename(self: *Self, path: []const u8) ![]const u8 {
         var list = ArrayList(u8).init(self.allocator.*);
         defer list.deinit();
 

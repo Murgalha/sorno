@@ -80,8 +80,8 @@ pub const MainMenu = struct {
 
 pub fn addProfile(menu: *MainMenu) !void {
     var prof: Profile = undefined;
-    prof = menu.tui.readProfile() catch unreachable;
-    menu.db.insert(prof) catch unreachable;
+    prof = try menu.tui.readProfile();
+    try menu.db.insert(prof);
 }
 
 pub fn addElement(menu: *MainMenu) !void {

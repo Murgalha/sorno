@@ -111,7 +111,7 @@ pub fn retrieveUnlinkedElements(allocator: *const mem.Allocator, db: ?*sqlite3) 
     return list.toOwnedSlice();
 }
 
-pub fn retrieveFullProfile(allocator: *const mem.Allocator, db: ?*sqlite3, profile_name: []u8) !Profile {
+pub fn retrieveFullProfile(allocator: *const mem.Allocator, db: ?*sqlite3, profile_name: []const u8) !Profile {
     // TODO: Retrieve profile based on ID, not name
     var list = ArrayList(Profile).init(allocator.*);
     defer list.deinit();

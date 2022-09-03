@@ -101,7 +101,7 @@ pub fn selectProfileCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8
     var list = @ptrCast(*ArrayList(Profile), @alignCast(@alignOf(*ArrayList(Profile)), ptr.?));
     var profile: Profile = undefined;
     var p_id: u64 = undefined;
-    var p_name: []u8 = undefined;
+    var p_name: []const u8 = undefined;
     var element: Element = undefined;
     var found = false;
 

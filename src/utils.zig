@@ -19,7 +19,7 @@ pub fn readLine(allocator: *const mem.Allocator, prompt: []const u8) ![]u8 {
     return (try stdin.readUntilDelimiterOrEofAlloc(allocator.*, '\n', max_alloc_size)).?;
 }
 
-pub fn getDelimIndexes(allocator: *const mem.Allocator, str: []u8, delim: u8) ![]usize {
+pub fn getDelimIndexes(allocator: *const mem.Allocator, str: []const u8, delim: u8) ![]usize {
     var list = ArrayList(usize).init(allocator.*);
     defer list.deinit();
 
@@ -32,7 +32,7 @@ pub fn getDelimIndexes(allocator: *const mem.Allocator, str: []u8, delim: u8) ![
     return list.toOwnedSlice();
 }
 
-pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []u8 {
+pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []const u8 {
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
