@@ -4,6 +4,7 @@ const qStrings = @import("querystrings.zig");
 const cb = @import("callbacks.zig");
 const dm = @import("datamodels.zig");
 const utils = @import("utils.zig");
+const log = std.log;
 const cstr = std.cstr;
 const mem = std.mem;
 const sqlite3 = c.sqlite3;
@@ -32,7 +33,8 @@ pub fn openConnection(allocator: *const mem.Allocator, path: []u8) !?*sqlite3 {
     var db: ?*sqlite3 = undefined;
     var res: c_int = c.sqlite3_open(db_name, &db);
     if (res != @as(c_int, 0)) {
-        try stdout.print("Could not open database connection: {s}\n", .{c.sqlite3_errmsg(db)});
+        log.err("Could not open database connection on '{s}': {s}\n", .{ db_name, c.sqlite3_errmsg(db) });
+        std.process.exit(1);
     }
 
     createAllTables(db);
@@ -200,14 +202,11 @@ pub fn createPath(allocator: *const mem.Allocator, path: []u8) !void {
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
-    try list.append('/');
-
     var start: usize = 0;
     for (indexes) |index| {
         var partial_path = path[start..index];
 
         try list.appendSlice(partial_path);
-        try list.append('/');
 
         var fullpath = try cstr.addNullByte(allocator.*, list.items);
 
