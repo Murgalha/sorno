@@ -28,7 +28,7 @@ pub fn openConnection(allocator: *const mem.Allocator, path: []u8) !?*sqlite3 {
     try list.appendSlice("/sorno.db");
 
     try createPath(allocator, path);
-    var db_name = try list.toOwnedSliceSentinel(0);
+    var db_name = @ptrCast([*c]const u8, try list.toOwnedSliceSentinel(0));
 
     var db: ?*sqlite3 = undefined;
     var res: c_int = c.sqlite3_open(db_name, &db);
@@ -208,7 +208,7 @@ pub fn createPath(allocator: *const mem.Allocator, path: []u8) !void {
 
         try list.appendSlice(partial_path);
 
-        var fullpath = try cstr.addNullByte(allocator.*, list.items);
+        var fullpath = @ptrCast([*c]const u8, try cstr.addNullByte(allocator.*, list.items));
 
         var dir: ?*c.DIR = c.opendir(fullpath);
         if (dir != null) {

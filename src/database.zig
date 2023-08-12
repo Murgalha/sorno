@@ -76,14 +76,14 @@ pub const Database = struct {
         var list = ArrayList(u8).init(allocator.*);
         defer list.deinit();
 
-        var data_dir: [*c]u8 = c.getenv("XDG_DATA_HOME");
+        var data_dir: [*c]u8 = c.getenv("XDG_CONFIG_HOME");
         if (data_dir != null) {
             try list.appendSlice(mem.span(data_dir));
             try list.appendSlice("/sorno/db/");
         } else {
             data_dir = c.getenv("HOME");
             try list.appendSlice(mem.span(data_dir));
-            try list.appendSlice("/.local/share/sorno/db/");
+            try list.appendSlice("/.config/sorno/db/");
         }
 
         return list.toOwnedSlice();

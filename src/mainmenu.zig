@@ -14,9 +14,9 @@ const AutoHashMap = std.hash_map.AutoHashMap;
 const Tuple = struct {
     const Self = @This();
     string: []const u8,
-    function: fn (*MainMenu) anyerror!void,
+    function: *const fn (*MainMenu) anyerror!void,
 
-    pub fn new(str: []const u8, func: fn (*MainMenu) anyerror!void) Self {
+    pub fn new(str: []const u8, func: *const fn (*MainMenu) anyerror!void) Self {
         return Self{
             .string = str,
             .function = func,

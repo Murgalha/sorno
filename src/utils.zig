@@ -2,6 +2,7 @@ const maxInt = @import("std").math.maxInt;
 const c = @import("c.zig");
 const std = @import("std");
 const mem = std.mem;
+const cstr = std.cstr;
 const ArrayList = std.ArrayList;
 const stdout = std.io.getStdOut().writer();
 const stdin = std.io.getStdIn().reader();
@@ -30,6 +31,11 @@ pub fn getDelimIndexes(allocator: *const mem.Allocator, str: []u8, delim: u8) ![
         }
     }
     return list.toOwnedSlice();
+}
+
+pub fn toCStr(allocator: *const mem.Allocator, string: []const u8) ![*c]const u8 {
+    var withNull = try cstr.addNullByte(allocator.*, string);
+    return @ptrCast([*c]const u8, withNull);
 }
 
 pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []u8 {
