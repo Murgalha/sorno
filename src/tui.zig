@@ -96,7 +96,7 @@ pub const Tui = struct {
     }
 
     pub fn readTargetPassword(self: *Self, prompt: []const u8) ![]u8 {
-        return utils.fromCString(self.allocator, c.getpass(try cstr.addNullByte(self.allocator.*, prompt)));
+        return utils.fromCString(self.allocator, c.getpass(try utils.toCStr(self.allocator, prompt)));
     }
 
     fn readNotEmpty(self: *Self, prompt: []const u8) ![]u8 {

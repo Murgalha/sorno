@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("c.zig");
 const dm = @import("datamodels.zig");
+const utils = @import("utils.zig");
 const Element = dm.Element;
 const Profile = dm.Profile;
 const Target = dm.Target;
@@ -83,7 +84,7 @@ pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, ta
         var cmd = list.toOwnedSlice();
 
         try stdout.print("\nRunning {s} {s}\n", .{ cmd_base, dirs });
-        _ = c.system(try cstr.addNullByte(allocator.*, cmd));
+        _ = c.system(try utils.toCStr(allocator, cmd));
     }
 
     return;
@@ -129,12 +130,12 @@ pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profil
     var full_cmd = list.toOwnedSlice();
 
     try stdout.print("\nRunning {s}\n", .{restore_cmd});
-    _ = c.system(try cstr.addNullByte(allocator.*, full_cmd));
+    _ = c.system(try utils.toCStr(allocator, full_cmd));
 
     for (profile.elements) |element| {
         var copy_cmd = try getRestoreCopyCmd(allocator, profile.name, element);
         std.debug.print("\nRunning {s}\n", .{copy_cmd});
-        _ = c.system(try cstr.addNullByte(allocator.*, copy_cmd));
+        _ = c.system(try utils.toCStr(allocator, copy_cmd));
     }
 }
 
