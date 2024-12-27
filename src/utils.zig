@@ -33,12 +33,7 @@ pub fn getDelimIndexes(allocator: *const mem.Allocator, str: []u8, delim: u8) ![
     return list.toOwnedSlice();
 }
 
-pub fn toCStr(allocator: *const mem.Allocator, string: []const u8) ![*c]const u8 {
-    var withNull = try cstr.addNullByte(allocator.*, string);
-    return @ptrCast([*c]const u8, withNull);
-}
-
-pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) []u8 {
+pub fn fromCString(allocator: *const mem.Allocator, str: [*c]u8) ![]u8 {
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
@@ -59,14 +54,18 @@ pub fn parseU64(buf: []const u8, radix: u8) !u64 {
         }
 
         // x *= radix
-        if (@mulWithOverflow(u64, x, radix, &x)) {
+        var ov = @mulWithOverflow(x, radix);
+        if (ov[1] != 0) {
             return error.Overflow;
         }
+        x = ov[0];
 
         // x += digit
-        if (@addWithOverflow(u64, x, digit, &x)) {
+        ov = @addWithOverflow(x, digit);
+        if (ov[1] != 0) {
             return error.Overflow;
         }
+        x = ov[0];
     }
 
     return x;

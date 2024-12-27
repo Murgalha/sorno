@@ -22,8 +22,8 @@ pub const Database = struct {
     connection: ?*sqlite3,
 
     pub fn open(allocator: *const mem.Allocator) !Self {
-        var path = try getDbPath(allocator);
-        var conn = try dblogic.openConnection(allocator, path);
+        const path = try getDbPath(allocator);
+        const conn = try dblogic.openConnection(allocator, path);
 
         return Self{
             .allocator = allocator,
@@ -83,7 +83,7 @@ pub const Database = struct {
         } else {
             data_dir = c.getenv("HOME");
             try list.appendSlice(mem.span(data_dir));
-            try list.appendSlice("/.config/sorno/db/");
+            try list.appendSlice("/.local/share/sorno/db/");
         }
 
         return list.toOwnedSlice();

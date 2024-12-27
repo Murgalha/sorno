@@ -1,5 +1,4 @@
 const std = @import("std");
-const cstr = std.cstr;
 const c = @import("c.zig");
 const dm = @import("datamodels.zig");
 const utils = @import("utils.zig");
@@ -96,7 +95,7 @@ pub const Tui = struct {
     }
 
     pub fn readTargetPassword(self: *Self, prompt: []const u8) ![]u8 {
-        return utils.fromCString(self.allocator, c.getpass(try utils.toCStr(self.allocator, prompt)));
+        return utils.fromCString(self.allocator, c.getpass(try self.allocator.*.dupeZ(u8, prompt)));
     }
 
     fn readNotEmpty(self: *Self, prompt: []const u8) ![]u8 {
@@ -130,7 +129,7 @@ pub const Tui = struct {
 
     fn readOption(self: *Self, prompt: []const u8, data_slice: anytype) !usize {
         var valid = false;
-        var n = data_slice.len;
+        const n = data_slice.len;
         var opt: u64 = undefined;
 
         // TODO: Check for valid data types only
@@ -157,7 +156,7 @@ pub const Tui = struct {
         var list = ArrayList(u8).init(self.allocator.*);
         defer list.deinit();
 
-        var indexes = try utils.getDelimIndexes(self.allocator, path, '/');
+        const indexes = try utils.getDelimIndexes(self.allocator, path, '/');
 
         if (indexes.len < 2) {
             try stdout.print("Given path might not be absolute path\n", .{});
@@ -166,7 +165,7 @@ pub const Tui = struct {
         // using -2 because the last slash is always the last character because
         // of maybeAppendForwardSlash
         // TODO: Check if above statement is true
-        var last = indexes[indexes.len - 2];
+        const last = indexes[indexes.len - 2];
 
         try list.appendSlice(path[last + 1 ..]);
         return list.toOwnedSlice();
