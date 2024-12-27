@@ -8,37 +8,49 @@ const Element = dm.Element;
 const Profile = dm.Profile;
 const fromCString = @import("utils.zig").fromCString;
 
-fn appendToSlice(comptime T: type, allocator: *const mem.Allocator, slice: []T, item: T) []T {
+fn appendToSlice(comptime T: type, allocator: *const mem.Allocator, slice: []T, item: T) ![]T {
     // TODO: Handle errors better than silently failing and returning
     var new_list = ArrayList(T).init(allocator.*);
     new_list.appendSlice(slice) catch {
         std.debug.print("Could not append Element slice to Array List\n", .{});
-        return new_list.toOwnedSlice();
+        return try new_list.toOwnedSlice();
     };
     new_list.append(item) catch {
         std.debug.print("Could not append new Element to Array List\n", .{});
-        return new_list.toOwnedSlice();
+        return try new_list.toOwnedSlice();
     };
 
-    return new_list.toOwnedSlice();
+    return try new_list.toOwnedSlice();
 }
 
 pub fn selectTargetCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8, names: [*c][*c]u8) callconv(.C) c_int {
-    var list = @ptrCast(*ArrayList(Target), @alignCast(@alignOf(*ArrayList(Target)), ptr.?));
+    var list: *ArrayList(Target) = @ptrCast(@alignCast(ptr.?));
     var target: Target = undefined;
 
     var i: usize = 0;
     while (i < ncols) : (i += 1) {
         if (std.mem.eql(u8, std.mem.span(names[i]), "id")) {
-            target.id = @intCast(u64, c.atoi(columns[i]));
+            target.id = @intCast(c.atoi(columns[i]));
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "name")) {
-            target.name = fromCString(&list.allocator, columns[i]);
+            target.name = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "user")) {
-            target.user = fromCString(&list.allocator, columns[i]);
+            target.user = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "path")) {
-            target.path = fromCString(&list.allocator, columns[i]);
+            target.path = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "address")) {
-            target.address = fromCString(&list.allocator, columns[i]);
+            target.address = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         }
     }
 
@@ -51,15 +63,18 @@ pub fn selectTargetCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8,
 }
 
 pub fn selectProfileNameCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8, names: [*c][*c]u8) callconv(.C) c_int {
-    var list = @ptrCast(*ArrayList(Profile), @alignCast(@alignOf(*ArrayList(Profile)), ptr.?));
+    var list: *ArrayList(Profile) = @ptrCast(@alignCast(ptr.?));
     var profile: Profile = undefined;
 
     var i: usize = 0;
     while (i < ncols) : (i += 1) {
         if (std.mem.eql(u8, std.mem.span(names[i]), "id")) {
-            profile.id = @intCast(u64, c.atoi(columns[i]));
+            profile.id = @intCast(c.atoi(columns[i]));
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "name")) {
-            profile.name = fromCString(&list.allocator, columns[i]);
+            profile.name = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         }
     }
     profile.elements = &.{};
@@ -73,19 +88,28 @@ pub fn selectProfileNameCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*
 }
 
 pub fn selectElementCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8, names: [*c][*c]u8) callconv(.C) c_int {
-    var list = @ptrCast(*ArrayList(Element), @alignCast(@alignOf(*ArrayList(Element)), ptr.?));
+    var list: *ArrayList(Element) = @ptrCast(@alignCast(ptr.?));
     var element: Element = undefined;
 
     var i: usize = 0;
     while (i < ncols) : (i += 1) {
         if (std.mem.eql(u8, std.mem.span(names[i]), "id")) {
-            element.id = @intCast(u64, c.atoi(columns[i]));
+            element.id = @intCast(c.atoi(columns[i]));
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "name")) {
-            element.name = fromCString(&list.allocator, columns[i]);
+            element.name = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "source")) {
-            element.source = fromCString(&list.allocator, columns[i]);
+            element.source = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "destination")) {
-            element.destination = fromCString(&list.allocator, columns[i]);
+            element.destination = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         }
     }
 
@@ -98,7 +122,7 @@ pub fn selectElementCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8
 }
 
 pub fn selectProfileCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8, names: [*c][*c]u8) callconv(.C) c_int {
-    var list = @ptrCast(*ArrayList(Profile), @alignCast(@alignOf(*ArrayList(Profile)), ptr.?));
+    var list: *ArrayList(Profile) = @ptrCast(@alignCast(ptr.?));
     var profile: Profile = undefined;
     var p_id: u64 = undefined;
     var p_name: []u8 = undefined;
@@ -108,17 +132,29 @@ pub fn selectProfileCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8
     var i: usize = 0;
     while (i < ncols) : (i += 1) {
         if (std.mem.eql(u8, std.mem.span(names[i]), "profile_id")) {
-            p_id = @intCast(u64, c.atoi(columns[i]));
+            p_id = @intCast(c.atoi(columns[i]));
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "profile_name")) {
-            p_name = fromCString(&list.allocator, columns[i]);
+            p_name = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "element_id")) {
-            element.id = @intCast(u64, c.atoi(columns[i]));
+            element.id = @intCast(c.atoi(columns[i]));
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "element_name")) {
-            element.name = fromCString(&list.allocator, columns[i]);
+            element.name = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "element_source")) {
-            element.source = fromCString(&list.allocator, columns[i]);
+            element.source = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         } else if (std.mem.eql(u8, std.mem.span(names[i]), "element_destination")) {
-            element.destination = fromCString(&list.allocator, columns[i]);
+            element.destination = fromCString(&list.allocator, columns[i]) catch {
+                std.debug.print("Failed to convert C string to slice", .{});
+                return -1;
+            };
         }
     }
 
@@ -132,11 +168,15 @@ pub fn selectProfileCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8
     }
 
     if (found) {
-        list.items[k].elements = appendToSlice(Element, &list.allocator, list.items[k].elements, element);
+        list.items[k].elements = appendToSlice(Element, &list.allocator, list.items[k].elements, element) catch {
+            return -1;
+        };
     } else {
         profile.id = p_id;
         profile.name = p_name;
-        profile.elements = appendToSlice(Element, &list.allocator, &.{}, element);
+        profile.elements = appendToSlice(Element, &list.allocator, &.{}, element) catch {
+            return -1;
+        };
 
         list.append(profile) catch {
             std.debug.print("Could not append Profile to Array List\n", .{});

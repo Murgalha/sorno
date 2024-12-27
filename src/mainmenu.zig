@@ -54,11 +54,11 @@ pub const MainMenu = struct {
     }
 
     fn printMainMenu(self: *Self) !void {
-        var n_items = self.options.count();
+        const n_items = self.options.count();
         try stdout.print("\n", .{});
         var i: u64 = 1;
         while (i <= n_items) : (i += 1) {
-            var tuple = self.options.get(i).?;
+            const tuple = self.options.get(i).?;
             try stdout.print("{d}: {s}\n", .{ i, tuple.string });
         }
     }
@@ -100,8 +100,8 @@ pub fn linkElement(menu: *MainMenu) !void {
     var p_idx: usize = undefined;
     var e_idx: usize = undefined;
 
-    var elements = try menu.db.selectUnlinkedElements();
-    var profiles = try menu.db.selectProfileNames();
+    const elements = try menu.db.selectUnlinkedElements();
+    const profiles = try menu.db.selectProfileNames();
 
     e_idx = menu.tui.selectElement("Select the element to link:\n"[0..], elements) catch {
         try stdout.print("There are no elements to choose\n", .{});
@@ -112,8 +112,8 @@ pub fn linkElement(menu: *MainMenu) !void {
         return;
     };
 
-    var element = elements[e_idx];
-    var profile = profiles[p_idx];
+    const element = elements[e_idx];
+    const profile = profiles[p_idx];
 
     try menu.db.linkElement(element, profile);
 }
@@ -122,23 +122,23 @@ pub fn syncProfile(menu: *MainMenu) !void {
     var p_idx: usize = undefined;
     var t_idx: usize = undefined;
 
-    var profiles = try menu.db.selectProfileNames();
+    const profiles = try menu.db.selectProfileNames();
 
     p_idx = menu.tui.selectProfile("Choose the profile to sync:\n"[0..], profiles) catch {
         try stdout.print("There are no profiles to choose\n", .{});
         return;
     };
 
-    var profile_name = profiles[p_idx].name;
-    var targets = try menu.db.selectTargets();
+    const profile_name = profiles[p_idx].name;
+    const targets = try menu.db.selectTargets();
     t_idx = menu.tui.selectTarget("Choose target to sync:\n"[0..], targets) catch {
         try stdout.print("There are no targets to choose\n", .{});
         return;
     };
 
-    var pw = try menu.tui.readTargetPassword("Enter remote user password: ");
+    const pw = try menu.tui.readTargetPassword("Enter remote user password: ");
 
-    var full_profile = try menu.db.selectProfile(profile_name);
+    const full_profile = try menu.db.selectProfile(profile_name);
     try sync.syncProfileToTarget(menu.db.allocator, full_profile, targets[t_idx], pw);
 }
 
@@ -146,21 +146,21 @@ pub fn restoreProfile(menu: *MainMenu) !void {
     var p_idx: usize = undefined;
     var t_idx: usize = undefined;
 
-    var profiles = try menu.db.selectProfileNames();
+    const profiles = try menu.db.selectProfileNames();
 
     p_idx = menu.tui.selectProfile("Choose the profile to restore:\n"[0..], profiles) catch {
         try stdout.print("There are no profiles to choose\n", .{});
         return;
     };
 
-    var profile_name = profiles[p_idx].name;
-    var targets = try menu.db.selectTargets();
+    const profile_name = profiles[p_idx].name;
+    const targets = try menu.db.selectTargets();
     t_idx = menu.tui.selectTarget("Choose target to restore from:\n"[0..], targets) catch {
         try stdout.print("There are no targets to choose\n", .{});
         return;
     };
-    var pw = try menu.tui.readTargetPassword("Enter remote user password: ");
-    var full_profile = try menu.db.selectProfile(profile_name);
+    const pw = try menu.tui.readTargetPassword("Enter remote user password: ");
+    const full_profile = try menu.db.selectProfile(profile_name);
     try sync.restoreProfileFromTarget(menu.db.allocator, full_profile, targets[t_idx], pw);
 }
 

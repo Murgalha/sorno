@@ -46,8 +46,8 @@ pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u
 
 pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profile, target: Target) ![]u8 {
     // rsync -azhvP {t.user}@{t.address}:{t.path}{t.name} /tmp/sorno/
-    var cmd_base = "rsync -sazhvP ";
-    var tmp_dir = "/tmp/sorno/";
+    const cmd_base = "rsync -sazhvP ";
+    const tmp_dir = "/tmp/sorno/";
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
 
@@ -69,9 +69,9 @@ pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profi
 }
 
 pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
-    var cmd_base = "rsync -sazhvP ";
+    const cmd_base = "rsync -sazhvP ";
 
-    var sshpass_cmd = try getSshpassCmd(allocator, password);
+    const sshpass_cmd = try getSshpassCmd(allocator, password);
     for (profile.elements) |element| {
         var list = ArrayList(u8).init(allocator.*);
         defer list.deinit();
@@ -79,12 +79,12 @@ pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, ta
         try list.appendSlice(sshpass_cmd);
         try list.appendSlice(cmd_base);
 
-        var dirs = try getSyncSrcAndDstString(allocator, profile.name, element, target);
+        const dirs = try getSyncSrcAndDstString(allocator, profile.name, element, target);
         try list.appendSlice(dirs);
-        var cmd = list.toOwnedSlice();
+        const cmd = try list.toOwnedSlice();
 
         try stdout.print("\nRunning {s} {s}\n", .{ cmd_base, dirs });
-        _ = c.system(try utils.toCStr(allocator, cmd));
+        _ = c.system(try allocator.*.dupeZ(u8, cmd));
     }
 
     return;
@@ -94,8 +94,8 @@ pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []u8, el
     // cp -r /tmp/sorno/{p.name}/{e.destination} {e.source}
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
-    var base = "cp -r ";
-    var tmp_dir = "/tmp/sorno/";
+    const base = "cp -r ";
+    const tmp_dir = "/tmp/sorno/";
 
     try list.appendSlice(base);
 
@@ -112,14 +112,14 @@ pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []u8, el
     //try list.appendSlice(element.source);
     try list.append('"');
 
-    return list.toOwnedSlice();
+    return try list.toOwnedSlice();
 }
 
 pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
     // TODO: There should be a safe way to create the destination directory and copy stuff there
     // without having same name subdirectory, like '/path/directory/directory/content
-    var restore_cmd = try getRestoreSrcAndDstString(allocator, profile, target);
-    var sshpass_cmd = try getSshpassCmd(allocator, password);
+    const restore_cmd = try getRestoreSrcAndDstString(allocator, profile, target);
+    const sshpass_cmd = try getSshpassCmd(allocator, password);
 
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
@@ -127,20 +127,20 @@ pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profil
     try list.appendSlice(sshpass_cmd);
     try list.append(' ');
     try list.appendSlice(restore_cmd);
-    var full_cmd = list.toOwnedSlice();
+    const full_cmd = try list.toOwnedSlice();
 
     try stdout.print("\nRunning {s}\n", .{restore_cmd});
-    _ = c.system(try utils.toCStr(allocator, full_cmd));
+    _ = c.system(try allocator.*.dupeZ(u8, full_cmd));
 
     for (profile.elements) |element| {
-        var copy_cmd = try getRestoreCopyCmd(allocator, profile.name, element);
+        const copy_cmd = try getRestoreCopyCmd(allocator, profile.name, element);
         std.debug.print("\nRunning {s}\n", .{copy_cmd});
-        _ = c.system(try utils.toCStr(allocator, copy_cmd));
+        _ = c.system(try allocator.*.dupeZ(u8, copy_cmd));
     }
 }
 
 fn getSshpassCmd(allocator: *const mem.Allocator, password: []u8) ![]u8 {
-    var sshpass = "sshpass -p ";
+    const sshpass = "sshpass -p ";
 
     var list = ArrayList(u8).init(allocator.*);
     defer list.deinit();
@@ -150,5 +150,5 @@ fn getSshpassCmd(allocator: *const mem.Allocator, password: []u8) ![]u8 {
     try list.append('"');
     try list.append(' ');
 
-    return list.toOwnedSlice();
+    return try list.toOwnedSlice();
 }
