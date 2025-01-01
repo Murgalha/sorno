@@ -2,6 +2,8 @@ const std = @import("std");
 const c = @import("c.zig");
 const ArrayList = std.ArrayList;
 const log = std.log;
+const Allocator = std.mem.Allocator;
+const StringArrayHashMap = std.array_hash_map.StringArrayHashMap;
 
 const SqliteError = error{};
 
@@ -15,77 +17,143 @@ pub const SqliteCell = struct {
 };
 
 const CallbackData = struct {
-    allocator: *const std.mem.Allocator,
+    allocator: *const Allocator,
     userData: ?*anyopaque,
-    userCallback: *const fn (*const std.mem.Allocator, SqliteRow, ?*anyopaque) i32,
+    userCallback: *const fn (*const Allocator, SqliteRow, ?*anyopaque) i32,
 };
 
-pub const SqliteDb = struct { data: ?*c.sqlite3 };
+pub const Statement = struct {
+    const Self = @This();
+    stmt: ?*c.sqlite3_stmt,
 
-pub fn openConnection(path: []u8) SqliteDb {
-    var db: ?*c.sqlite3 = undefined;
-    const res: c_int = c.sqlite3_open(@ptrCast(path), &db);
-    if (res != 0) {
-        log.err("Could not open database connection on '{s}': {s}\n", .{ path, c.sqlite3_errmsg(db) });
-        std.process.exit(1);
+    pub fn execute(self: *const Self) i32 {
+        return c.sqlite3_step(self.stmt);
     }
 
-    return SqliteDb{ .data = db };
-}
-
-pub fn closeConnection(db: SqliteDb) void {
-    const res: c_int = c.sqlite3_close(db.data);
-
-    if (res != 0) {
-        log.err("Could not close database connection: {s}\n", .{c.sqlite3_errmsg(db)});
-        std.process.exit(1);
-    }
-}
-
-pub fn execute(database: SqliteDb, query: []const u8) i32 {
-    var rc: c_int = undefined;
-    var errmsg: [*c]u8 = undefined;
-
-    const sql: [*c]u8 = @constCast(@ptrCast(query));
-    rc = c.sqlite3_exec(database.data, sql, null, null, &errmsg);
-    if (rc != 0) {
-        log.err("Error {d} while executing statement: {s}\n", .{ rc, errmsg });
-    }
-    c.sqlite3_free(@ptrCast(errmsg));
-
-    return rc;
-}
-
-pub fn executeWithCallback(allocator: *const std.mem.Allocator, database: SqliteDb, query: []const u8, callback: *const fn (*const std.mem.Allocator, SqliteRow, ?*anyopaque) i32, data: ?*anyopaque) i32 {
-    var errmsg: [*c]u8 = undefined;
-
-    var callbackData = CallbackData{ .allocator = allocator, .userData = data, .userCallback = callback };
-
-    const sql: [*c]u8 = @constCast(@ptrCast(query));
-    _ = c.sqlite3_exec(database.data, sql, internalCallback, @ptrCast(&callbackData), &errmsg);
-
-    // TODO: Handle error message
-    c.sqlite3_free(@ptrCast(errmsg));
-
-    return 0;
-}
-
-fn internalCallback(ptr: ?*anyopaque, ncols: c_int, columns: [*c][*c]u8, names: [*c][*c]u8) callconv(.C) c_int {
-    const callbackData: *CallbackData = @ptrCast(@alignCast(ptr));
-
-    var list = ArrayList(SqliteCell).init(callbackData.allocator.*);
-    defer list.deinit();
-
-    var i: usize = 0;
-    while (i < ncols) : (i += 1) {
-        list.append(SqliteCell{ .name = std.mem.span(names[i]), .value = std.mem.span(columns[i]) }) catch {
-            return -1;
-        };
+    pub fn columnCount(self: *const Self) i32 {
+        return c.sqlite3_column_count(self.stmt);
     }
 
-    const row = SqliteRow{ .cells = list.toOwnedSlice() catch {
-        return -1;
-    } };
+    pub fn finalize(self: *const Self) i32 {
+        return c.sqlite3_finalize(self.stmt);
+    }
+};
 
-    return callbackData.userCallback(callbackData.allocator, row, callbackData.userData);
-}
+pub const DbHandle = struct {
+    const Self = @This();
+    handle: ?*c.sqlite3,
+
+    pub fn init(path: []const u8) Self {
+        var db: ?*c.sqlite3 = undefined;
+        const res: c_int = c.sqlite3_open(@ptrCast(path), &db);
+        if (res != 0) {
+            log.err("Could not open database connection on '{s}': {s}\n", .{ path, c.sqlite3_errmsg(db) });
+            std.process.exit(1);
+        }
+
+        return Self{ .handle = db };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        const res: c_int = c.sqlite3_close(self.handle);
+
+        if (res != 0) {
+            log.err("Could not close database connection: {s}\n", .{c.sqlite3_errmsg(self.handle)});
+            std.process.exit(1);
+        }
+    }
+
+    pub fn execute(self: *const Self, allocator: *const Allocator, query: []const u8, args: anytype) !void {
+        var stmt = try self
+            .prepareStatement(allocator, query, args);
+        defer _ = stmt.finalize();
+
+        const rc = stmt.execute();
+        if (rc != c.SQLITE_DONE) {
+            std.log.err("Error executing statement {d}: {s}\n", .{ rc, c.sqlite3_errmsg(self.handle) });
+        }
+    }
+
+    pub fn executeWithReturn(
+        self: *const Self,
+        allocator: *const Allocator,
+        query: []const u8,
+        args: anytype,
+    ) ![]StringArrayHashMap([]const u8) {
+        var stmt = try self
+            .prepareStatement(allocator, query, args);
+        defer _ = stmt.finalize();
+
+        var list = ArrayList(StringArrayHashMap([]const u8)).init(allocator.*);
+        var rc = c.SQLITE_ROW;
+
+        while (true) {
+            rc = stmt.execute();
+            if (rc == c.SQLITE_DONE) break;
+
+            const colCount = stmt.columnCount();
+
+            var hash_map = StringArrayHashMap([]const u8).init(allocator.*);
+            for (0..@intCast(colCount)) |colIndex| {
+                const name = try allocator.dupe(u8, std.mem.span(c.sqlite3_column_name(stmt.stmt, @intCast(colIndex))));
+                const value = try allocator.dupe(u8, std.mem.span(c.sqlite3_column_text(stmt.stmt, @intCast(colIndex))));
+                try hash_map.put(name, value);
+            }
+
+            try list.append(hash_map);
+        }
+
+        return list.toOwnedSlice();
+    }
+
+    fn prepareStatement(self: *const Self, allocator: *const Allocator, query: []const u8, args: anytype) !Statement {
+        const c_query = try allocator.*.dupeZ(u8, query);
+        var stmt: ?*c.sqlite3_stmt = undefined;
+
+        var rc: c_int = undefined;
+        rc = c.sqlite3_prepare_v2(self.handle, c_query, -1, @ptrCast(&stmt), null);
+
+        inline for (args, 1..) |arg, idx| {
+            self.bindArg(stmt, arg, idx);
+        }
+
+        return Statement{ .stmt = stmt };
+    }
+
+    fn bindArg(_: *const Self, stmt: ?*c.sqlite3_stmt, arg: anytype, bind_index: i32) void {
+        var rc: c_int = undefined;
+        const typeInfo = @typeInfo(@TypeOf(arg));
+
+        switch (typeInfo) {
+            .Int, .ComptimeInt => {
+                rc = c.sqlite3_bind_int64(stmt, bind_index, @intCast(arg));
+            },
+            .Float, .ComptimeFloat => {
+                rc = c.sqlite3_bind_double(stmt, bind_index, arg);
+            },
+            .Pointer => |ptr| {
+                switch (ptr.size) {
+                    .One => switch (@typeInfo(ptr.child)) {
+                        .Array => |arr| {
+                            if (arr.child == u8) {
+                                rc = c.sqlite3_bind_text(stmt, bind_index, arg.ptr, @intCast(arg.len), c.SQLITE_STATIC);
+                            } else {
+                                std.debug.print("Unsupported array type '{any}'", .{@typeInfo(arr.child)});
+                            }
+                        },
+                        else => std.debug.print("Unsupported type '{any}'", .{@typeInfo(@TypeOf(arg))}),
+                    },
+                    .Slice => {
+                        if (ptr.child == u8) {
+                            rc = c.sqlite3_bind_text(stmt, bind_index, arg.ptr, @intCast(arg.len), c.SQLITE_STATIC);
+                        } else {
+                            std.debug.print("Unsupported array type '{any}'", .{@typeInfo(ptr.child)});
+                        }
+                    },
+                    else => std.debug.print("Unsupported type '{any}'", .{@typeInfo(@TypeOf(arg))}),
+                }
+            },
+            else => std.debug.print("Unsupported type '{any}'", .{@typeInfo(@TypeOf(arg))}),
+        }
+    }
+};
