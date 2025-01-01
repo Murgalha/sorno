@@ -61,7 +61,7 @@ pub const SELECT_FULL_PROFILE =
     ++
     \\ FROM profile p JOIN profileelements pe ON p.id = pe.profile_id
     ++
-    \\ JOIN element e ON e.id = pe.element_id WHERE p.name=%Q;
+    \\ JOIN element e ON e.id = pe.element_id WHERE p.name = ?;
 ;
 
 pub const SELECT_UNLINKED_ELEMENTS =
@@ -69,17 +69,17 @@ pub const SELECT_UNLINKED_ELEMENTS =
 ;
 
 pub const INSERT_PROFILE =
-    \\INSERT INTO profile(name) VALUES(%Q);
+    \\INSERT INTO profile(name) VALUES(?);
 ;
 
 pub const INSERT_ELEMENT =
-    \\INSERT INTO element(name, source, destination) VALUES(%Q, %Q, %Q);
+    \\INSERT INTO element(name, source, destination) VALUES(?, ?, ?);
 ;
 
 pub const INSERT_TARGET =
-    \\INSERT INTO target(name, path, address, user) VALUES(%Q, %Q, %Q, %Q);
+    \\INSERT INTO target(name, path, address, user) VALUES(?, ?, ?, ?);
 ;
 
 pub const INSERT_PROFILEELEMENT =
-    \\INSERT INTO profileelements(profile_id, element_id) VALUES(%u, %u);
+    \\INSERT INTO profileelements(profile_id, element_id) VALUES(?, ?);
 ;

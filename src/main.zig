@@ -12,8 +12,8 @@ const MainMenu = @import("mainmenu.zig").MainMenu;
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var db = try Database.open(&allocator);
-    defer db.close();
+    var db = try Database.init(&allocator);
+    defer db.deinit();
     var tui = try Tui.init(&allocator);
     defer tui.deinit();
 

@@ -71,6 +71,8 @@ pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profi
 pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
     const cmd_base = "rsync -sazhvP ";
 
+    // TODO: Create profile dir before sync'ing
+
     const sshpass_cmd = try getSshpassCmd(allocator, password);
     for (profile.elements) |element| {
         var list = ArrayList(u8).init(allocator.*);
