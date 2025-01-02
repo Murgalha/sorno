@@ -59,9 +59,9 @@ pub const SELECT_FULL_PROFILE =
     ++
     \\ e.name as element_name, e.source as element_source, e.destination as element_destination
     ++
-    \\ FROM profile p JOIN profileelements pe ON p.id = pe.profile_id
+    \\ FROM profile p LEFT JOIN profileelements pe ON p.id = pe.profile_id
     ++
-    \\ JOIN element e ON e.id = pe.element_id WHERE p.name = ?;
+    \\ LEFT JOIN element e ON e.id = pe.element_id WHERE p.name = ?;
 ;
 
 pub const SELECT_UNLINKED_ELEMENTS =
