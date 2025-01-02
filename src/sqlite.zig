@@ -45,7 +45,8 @@ pub const DbHandle = struct {
 
     pub fn init(path: []const u8) Self {
         var db: ?*c.sqlite3 = undefined;
-        const res: c_int = c.sqlite3_open(@ptrCast(path), &db);
+        const dbFlags = c.SQLITE_OPEN_READWRITE | c.SQLITE_OPEN_CREATE;
+        const res: c_int = c.sqlite3_open_v2(@ptrCast(path), &db, dbFlags, null);
         if (res != 0) {
             log.err("Could not open database connection on '{s}': {s}\n", .{ path, c.sqlite3_errmsg(db) });
             std.process.exit(1);
