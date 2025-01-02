@@ -78,8 +78,9 @@ pub const Database = struct {
 
         var list = ArrayList(Element).init(self.allocator.*);
 
-        const slice = try connection.executeWithReturn(self.allocator, qStrings.SELECT_UNLINKED_ELEMENTS, .{});
-        defer self.allocator.*.free(slice);
+        const slice = try connection
+            .executeWithReturn(self.allocator, qStrings.SELECT_UNLINKED_ELEMENTS, .{});
+        defer self.allocator.free(slice);
 
         for (slice) |row| {
             const element: Element = .{
@@ -103,8 +104,9 @@ pub const Database = struct {
         var list = ArrayList(Profile).init(self.allocator.*);
         defer list.deinit();
 
-        const slice = try connection.executeWithReturn(self.allocator, qStrings.SELECT_ALL_PROFILE_NAMES, .{});
-        defer self.allocator.*.free(slice);
+        const slice = try connection
+            .executeWithReturn(self.allocator, qStrings.SELECT_ALL_PROFILE_NAMES, .{});
+        defer self.allocator.free(slice);
 
         for (slice) |row| {
             const profile: Profile = .{
@@ -127,14 +129,18 @@ pub const Database = struct {
         var list = ArrayList(Element).init(self.allocator.*);
         defer list.deinit();
 
-        const slice = try connection.executeWithReturn(self.allocator, qStrings.SELECT_FULL_PROFILE, .{profile_name});
-        defer self.allocator.*.free(slice);
+        const slice = try connection
+            .executeWithReturn(self.allocator, qStrings.SELECT_FULL_PROFILE, .{profile_name});
+        defer self.allocator.free(slice);
 
         std.debug.assert(slice.len == 1);
         const profileName = @constCast(slice[0].get("profile_name").?);
         const profileId = try std.fmt.parseInt(u64, slice[0].get("profile_id").?, 10);
 
         for (slice) |row| {
+            if (row.get("element_id") == null or row.get("element_id").?.len == 0)
+                continue;
+
             const element = Element{
                 .id = try std.fmt.parseInt(u64, row.get("element_id").?, 10),
                 .name = @constCast(row.get("element_name").?),
@@ -144,8 +150,6 @@ pub const Database = struct {
 
             try list.append(element);
         }
-
-        std.debug.assert(slice.len == 1);
 
         return .{
             .id = profileId,
@@ -159,7 +163,7 @@ pub const Database = struct {
         defer connection.deinit();
 
         const slice = try connection.executeWithReturn(self.allocator, qStrings.SELECT_ALL_TARGETS, .{});
-        defer self.allocator.*.free(slice);
+        defer self.allocator.free(slice);
 
         var list = ArrayList(Target).init(self.allocator.*);
         defer list.deinit();
