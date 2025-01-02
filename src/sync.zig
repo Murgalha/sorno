@@ -13,77 +13,62 @@ const stdout = std.io.getStdOut().writer();
 pub fn getSyncSrcAndDstString(allocator: *const mem.Allocator, profile_name: []u8, e: Element, t: Target) ![]u8 {
     // TODO: Rsync will not create all the directories needed, only the last one
     // We must create it with an ssh command previously to guarantee
-    var list = ArrayList(u8).init(allocator.*);
-    defer list.deinit();
-
-    try list.append('"');
-    try list.appendSlice(e.source);
-    try list.append('"');
-    try list.append(' ');
-
     if (t.address.len != 0) {
-        try list.append('"');
-        try list.appendSlice(t.user);
-        try list.append('@');
-        try list.appendSlice(t.address);
-        try list.append(':');
-        try list.appendSlice(t.path);
-        try list.appendSlice(profile_name);
-        try list.append('/');
-        try list.appendSlice(e.destination);
-        try list.append('"');
+        return try std.fmt.allocPrint(allocator.*, "\"{s}\" \"{s}@{s}:{s}{s}/{s}\"", .{
+            e.source,
+            t.user,
+            t.address,
+            t.path,
+            profile_name,
+            e.destination,
+        });
     } else {
-        try list.append(' ');
-        try list.append('"');
-        try list.appendSlice(t.path);
-        try list.appendSlice(profile_name);
-        try list.append('/');
-        try list.appendSlice(e.destination);
-        try list.append('"');
+        return try std.fmt.allocPrint(allocator.*, "\"{s}\" \"{s}{s}/{s}\"", .{
+            e.source,
+            t.path,
+            profile_name,
+            e.destination,
+        });
     }
-    return list.toOwnedSlice();
 }
 
 pub fn getRestoreSrcAndDstString(allocator: *const mem.Allocator, profile: Profile, target: Target) ![]u8 {
     // rsync -azhvP {t.user}@{t.address}:{t.path}{t.name} /tmp/sorno/
-    const cmd_base = "rsync -sazhvP ";
+    const cmd_base = "rsync -sazhvP";
     const tmp_dir = "/tmp/sorno/";
-    var list = ArrayList(u8).init(allocator.*);
-    defer list.deinit();
 
-    try list.appendSlice(cmd_base);
-    try list.append('"');
-    try list.appendSlice(target.user);
-    try list.append('@');
-    try list.appendSlice(target.address);
-    try list.append(':');
-    try list.appendSlice(target.path);
-    try list.appendSlice(profile.name);
-    try list.append('"');
-    try list.append(' ');
-    try list.append('"');
-    try list.appendSlice(tmp_dir);
-    try list.append('"');
-
-    return list.toOwnedSlice();
+    if (target.address.len != 0) {
+        return try std.fmt.allocPrint(allocator.*, "{s} \"{s}@{s}:{s}{s}\" \"{s}\"", .{
+            cmd_base,
+            target.user,
+            target.address,
+            target.path,
+            profile.name,
+            tmp_dir,
+        });
+    } else {
+        return try std.fmt.allocPrint(allocator.*, "{s} \"{s}{s}\" \"{s}\"", .{
+            cmd_base,
+            target.path,
+            profile.name,
+            tmp_dir,
+        });
+    }
 }
 
 pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
-    const cmd_base = "rsync -sazhvP ";
+    const cmd_base = "rsync -sazhvP";
 
     // TODO: Create profile dir before sync'ing
-
     const sshpass_cmd = try getSshpassCmd(allocator, password);
+    defer allocator.free(sshpass_cmd);
+
     for (profile.elements) |element| {
-        var list = ArrayList(u8).init(allocator.*);
-        defer list.deinit();
-
-        try list.appendSlice(sshpass_cmd);
-        try list.appendSlice(cmd_base);
-
         const dirs = try getSyncSrcAndDstString(allocator, profile.name, element, target);
-        try list.appendSlice(dirs);
-        const cmd = try list.toOwnedSlice();
+        defer allocator.free(dirs);
+
+        const cmd = try std.fmt.allocPrint(allocator.*, "{s} {s} {s}", .{ sshpass_cmd, cmd_base, dirs });
+        defer allocator.free(cmd);
 
         try stdout.print("\nRunning {s} {s}\n", .{ cmd_base, dirs });
         _ = c.system(try allocator.*.dupeZ(u8, cmd));
@@ -94,63 +79,44 @@ pub fn syncProfileToTarget(allocator: *const mem.Allocator, profile: Profile, ta
 
 pub fn getRestoreCopyCmd(allocator: *const mem.Allocator, profile_name: []u8, element: Element) ![]u8 {
     // cp -r /tmp/sorno/{p.name}/{e.destination} {e.source}
-    var list = ArrayList(u8).init(allocator.*);
-    defer list.deinit();
-    const base = "cp -r ";
+    const base = "cp -r";
     const tmp_dir = "/tmp/sorno/";
 
-    try list.appendSlice(base);
-
-    try list.append('"');
-    try list.appendSlice(tmp_dir);
-    try list.appendSlice(profile_name);
-    try list.append('/');
-    try list.appendSlice(element.destination);
-    try list.append('"');
-    try list.append(' ');
-    try list.append('"');
-
-    try list.appendSlice("/tmp/sorno/test/");
-    //try list.appendSlice(element.source);
-    try list.append('"');
-
-    return try list.toOwnedSlice();
+    return std.fmt.allocPrint(allocator.*, "{s} \"{s}{s}/{s}\"/* \"{s}\"", .{
+        base,
+        tmp_dir,
+        profile_name,
+        element.destination,
+        element.source,
+    });
 }
 
 pub fn restoreProfileFromTarget(allocator: *const mem.Allocator, profile: Profile, target: Target, password: []u8) !void {
     // TODO: There should be a safe way to create the destination directory and copy stuff there
     // without having same name subdirectory, like '/path/directory/directory/content
-    const restore_cmd = try getRestoreSrcAndDstString(allocator, profile, target);
-    const sshpass_cmd = try getSshpassCmd(allocator, password);
 
-    var list = ArrayList(u8).init(allocator.*);
-    defer list.deinit();
+    // TODO: We need to guarantee that the /tmp/sorno folder exists
+    const rsync_cmd = try getRestoreSrcAndDstString(allocator, profile, target);
+    const restore_cmd = try std.fmt.allocPrint(allocator.*, "{s} {s}", .{
+        try getSshpassCmd(allocator, password),
+        rsync_cmd,
+    });
+    defer allocator.free(restore_cmd);
+    defer allocator.free(rsync_cmd);
 
-    try list.appendSlice(sshpass_cmd);
-    try list.append(' ');
-    try list.appendSlice(restore_cmd);
-    const full_cmd = try list.toOwnedSlice();
-
-    try stdout.print("\nRunning {s}\n", .{restore_cmd});
-    _ = c.system(try allocator.*.dupeZ(u8, full_cmd));
+    try stdout.print("\nRunning {s}\n", .{rsync_cmd});
+    _ = c.system(try allocator.*.dupeZ(u8, restore_cmd));
 
     for (profile.elements) |element| {
         const copy_cmd = try getRestoreCopyCmd(allocator, profile.name, element);
+        defer allocator.free(copy_cmd);
+
         std.debug.print("\nRunning {s}\n", .{copy_cmd});
         _ = c.system(try allocator.*.dupeZ(u8, copy_cmd));
     }
 }
 
 fn getSshpassCmd(allocator: *const mem.Allocator, password: []u8) ![]u8 {
-    const sshpass = "sshpass -p ";
-
-    var list = ArrayList(u8).init(allocator.*);
-    defer list.deinit();
-    try list.appendSlice(sshpass);
-    try list.append('"');
-    try list.appendSlice(password);
-    try list.append('"');
-    try list.append(' ');
-
-    return try list.toOwnedSlice();
+    const sshpass = "sshpass -p";
+    return try std.fmt.allocPrint(allocator.*, "{s} \"{s}\"", .{ sshpass, password });
 }
