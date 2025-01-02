@@ -97,7 +97,15 @@ pub const DbHandle = struct {
             var hash_map = StringArrayHashMap([]const u8).init(allocator.*);
             for (0..@intCast(colCount)) |colIndex| {
                 const name = try allocator.dupe(u8, std.mem.span(c.sqlite3_column_name(stmt.stmt, @intCast(colIndex))));
-                const value = try allocator.dupe(u8, std.mem.span(c.sqlite3_column_text(stmt.stmt, @intCast(colIndex))));
+                var value: []const u8 = undefined;
+
+                const v = c.sqlite3_column_text(stmt.stmt, @intCast(colIndex));
+                if (v == null) {
+                    value = &.{};
+                } else {
+                    value = try allocator.dupe(u8, std.mem.span(v));
+                }
+
                 try hash_map.put(name, value);
             }
 
