@@ -12,16 +12,14 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "a",
+        .name = "sorno",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    //const exe = b.addExecutable("tmp", "src/main.zig");
     exe.linkLibC();
     exe.linkSystemLibrary("sqlite3");
-    //exe.setTarget(target);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
