@@ -133,7 +133,6 @@ pub const Database = struct {
             .executeWithReturn(self.allocator, qStrings.SELECT_FULL_PROFILE, .{profile_name});
         defer self.allocator.free(slice);
 
-        std.debug.assert(slice.len == 1);
         const profileName = @constCast(slice[0].get("profile_name").?);
         const profileId = try std.fmt.parseInt(u64, slice[0].get("profile_id").?, 10);
 
